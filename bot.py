@@ -1,14 +1,10 @@
-# todo:
-# поменять в reputation() ник бота перед деплоем
-
-
 import telebot
 import sqlite3
 import time
 import random
 
-# testbot
-TOKEN = "5559769951:AAHTwpyjoICRvEJasWwg0IpCugD5103SAUo"
+
+TOKEN = ""
 bot = telebot.TeleBot(TOKEN)
 
 
@@ -97,7 +93,6 @@ def reputation(message):
         else:
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
-
-
+            
 if __name__ == "__main__":
     bot.polling()
