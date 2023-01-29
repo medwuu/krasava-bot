@@ -75,7 +75,7 @@ def reputation(message):
     if message.text[:4] == '+rep' or message.text[:4] == '-rep':
         to_whom = message.text.split()[1][1:]
         # вставить ник будущего бота
-        if to_whom == "test9443224bot":
+        if to_whom == "":
             bot.send_message(message.chat.id, "Вы решили посягнуть на святое!")
             return 0
         if message.from_user.username != to_whom:
