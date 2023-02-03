@@ -1,15 +1,9 @@
-# todo:
-# сделать определение id пользователя через message.enities
-# поменять в reputation() ник бота перед деплоем
-
-
 import telebot
 import sqlite3
 import time
 import random
 
-# testbot
-TOKEN = "5559769951:AAHTwpyjoICRvEJasWwg0IpCugD5103SAUo"
+TOKEN = ""
 bot = telebot.TeleBot(TOKEN)
 
 
@@ -76,11 +70,6 @@ def coinflip(message):
     bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if random.randint(0, 1) == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
 
 # добавление и отнимание репутации
-@bot.message_handler(content_types=['text'])
-def a(m):
-    # bot.send_message(m.chat.id, m)
-    print(m.entities[0])
-
 def reputation(message):
     if message.text.lower()[:4] == '+rep' or message.text.lower()[:4] == '-rep':
         connect = sqlite3.connect("data.db")
@@ -93,7 +82,7 @@ def reputation(message):
             return "cooldown"
         to_whom = message.text.split()[1][1:]
         # вставить ник будущего бота
-        if to_whom == "test9443224bot":
+        if to_whom == "":
             if message.text[0] == "-":
                 bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
             else:
