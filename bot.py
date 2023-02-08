@@ -3,8 +3,8 @@ import sqlite3
 import time
 import random
 
-# bot token
-TOKEN = ""
+# mirea_krasawa_bot
+TOKEN = "6006798501:AAGq8MMk0AszZ0r05De910LxUwzWz4fTgUk"
 bot = telebot.TeleBot(TOKEN)
 
 # регистрация пользователя в БД
@@ -15,8 +15,8 @@ def start(message):
     if str(message.chat.id)[0] != "-":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return "dm"
-    cursor.execute(f"""CREATE TABLE IF NOT EXISTS chat_{str(message.chat.id)[1:]}(
-        id INTEGER UNIQUE,
+    cursor.execute(f"""CREATE TABLE IF NOT EXISTS chat_{str(message.chat.id)[1:] if str(message.chat.id)[0] == "-" else message.chat.id}(
+        id INTEGER,
         username TEXT,
         reputation INTEGER,
         cooldown ITEGER
@@ -78,6 +78,7 @@ def coinflip(message):
     bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if random.randint(0, 1) == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
 
 # добавление и отнимание репутации
+@bot.message_handler(content_types=['text'])
 def reputation(message):
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         connect = sqlite3.connect("data.db")
@@ -115,8 +116,8 @@ def reputation(message):
                 bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: {message.text.split(' ', 2)[2]}.\nТеперь репутация равна {rep}")
             except IndexError:
                 bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.\nТеперь репутация равна {rep}")
-    else:
-        bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
+        else:
+            bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 
 if __name__ == "__main__":
