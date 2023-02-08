@@ -3,8 +3,8 @@ import sqlite3
 import time
 import random
 
-# mirea_krasawa_bot
-TOKEN = "6006798501:AAGq8MMk0AszZ0r05De910LxUwzWz4fTgUk"
+# bot token
+TOKEN = ""
 bot = telebot.TeleBot(TOKEN)
 
 # регистрация пользователя в БД
