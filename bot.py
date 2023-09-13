@@ -1,10 +1,14 @@
-import telebot
-import sqlite3
 import time
 import random
+import logging
+import sqlite3
+import telebot
+import requests
+import config
+from bs4 import BeautifulSoup
 
 # bot token
-TOKEN = ""
+TOKEN = config.TOKEN
 bot = telebot.TeleBot(TOKEN)
 
 # регистрация пользователя в БД
@@ -73,9 +77,17 @@ def ping_all(message):
 # подбросить монетку
 @bot.message_handler(commands=['coinflip'])
 def coinflip(message):
+    min_num = 0
+    max_num = 1
+    r = requests.get(f"https://www.random.org/integers/?num=1&min={min_num}&max={max_num}&col=1&base=10&format=plain&rnd=new&cl=w")
+    if not r.ok:
+        bot.send_message(message.chat.id, "Произошла ошибка при обращении к random.org.\nПопробуйте позже!")
+        return
+    soup = BeautifulSoup(r.text, "html.parser")
+    answer = int(soup.find("span").text.strip())
     bot_message = bot.send_message(message.chat.id, f"@{message.from_user.username} подбрасывает монетку и выпадает...")
     time.sleep(2)
-    bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if random.randint(0, 1) == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
+    bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if answer == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
 
 # добавление и отнимание репутации
 @bot.message_handler(content_types=['text'])
@@ -120,5 +132,12 @@ def reputation(message):
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 
-if __name__ == "__main__":
-    bot.polling()
+while __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, filename="logging.log", filemode="w",
+                        format="%(asctime)s %(levelname)s %(message)s")
+    try:
+        logging.info("Bot start")
+        bot.polling(True)
+    except Exception as error:
+        logging.critical(f"Error:\n{error}", exc_info=True)
+        continue
