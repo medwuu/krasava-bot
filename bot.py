@@ -12,7 +12,6 @@ TOKEN = config.TOKEN
 bot = telebot.TeleBot(TOKEN)
 
 # регистрация пользователя в БД
-@bot.message_handler(commands=['start'])
 def start(message):
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
@@ -37,15 +36,12 @@ def start(message):
             username = message.from_user.first_name
         cursor.execute(f"INSERT INTO chat_{str(message.chat.id)[1:]} VALUES(?, ?, ?, ?);", [id, username, 0, 0])
         connect.commit()
-        bot.send_message(message.chat.id, "Успешная регистрация!")
-    else:
-        bot.send_message(message.chat.id, "Ты уже регистрировался!")
+        bot.send_message(message.chat.id, f"Привет, @{message.from_user.username}. Рад познакомиться с тобой! 😀\nТы можешь посмотреть список моих команд, написав /help")
 
 # список команд бота
 @bot.message_handler(commands=['help'])
 def help(message):
     bot.send_message(message.chat.id, "Команды бота:\n" +
-                    "/start – команда для регистрации, если вы ещё не сделали этого;\n" +
                     "/all – упомянуть всех людей в чате;\n" +
                     "/coinflip – подбросить монетку, чтобы решить спор;\n" +
                     "+rep @кому причина (не обязательно) – повысить репутацию пользователю. Например, <code>+rep @durov_russia спасибо за телегу</code>.\n<b>Изменять репутацию можно один раз в час</b>;\n" +
@@ -71,12 +67,13 @@ def ping_all(message):
     cursor = connect.cursor()
     members = cursor.execute(f"""SELECT username from chat_{str(message.chat.id)[1:]}""").fetchall()
     bot.delete_message(message.chat.id, message.message_id)
-    members_list = "\n@".join([x[0] for x in members if x[0] != message.from_user.username])
-    bot.send_message(message.chat.id, f"@{message.from_user.username} упоминает:\n\n@{members_list}")
+    members_list = ", @".join([x[0] for x in members if x[0] != message.from_user.username])
+    bot.send_message(message.chat.id, f"@{message.from_user.username} упоминает всех\n||\(@{members_list}\)||", 'MarkdownV2')
 
 # подбросить монетку
 @bot.message_handler(commands=['coinflip'])
 def coinflip(message):
+    bot.delete_message(message.chat.id, message.message_id)
     min_num = 0
     max_num = 1
     r = requests.get(f"https://www.random.org/integers/?num=1&min={min_num}&max={max_num}&col=1&base=10&format=plain&rnd=new&cl=w")
@@ -89,15 +86,16 @@ def coinflip(message):
     time.sleep(2)
     bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if answer == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
 
-# добавление и отнимание репутации
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
+    start(message)
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
     elif any(element_a in ['лось', 'лося', 'лосю', 'лосе'] for element_a in message.text.lower().split()):
         mooseMeme(message)
 
 
+# добавление и отнимание репутации
 def reputation(message):
         connect = sqlite3.connect("data.db")
         cursor = connect.cursor()
@@ -138,7 +136,17 @@ def reputation(message):
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 def mooseMeme(message):
-    bot.send_photo(message.chat.id, config.MOOSE_PHOTO_ID, caption=f'@{message.from_user.username}, вот такой?')
+    if 'лось' in message.text.lower():
+        caption = f'@{message.from_user.username}, вот такой?'
+    elif 'лося' in message.text.lower():
+        caption = f'@{message.from_user.username}, вот такого?'
+    elif 'лосю' in message.text.lower():
+        caption = f'@{message.from_user.username}, вот такому?'
+    elif 'лосе' in message.text.lower():
+        caption = f'@{message.from_user.username}, вот таком?'
+    # тут лучше использовать id фотографии, но у меня на релизе не получалось. пришлось делать так
+    with open('moose.jpg', 'rb') as photo:
+        bot.send_photo(message.chat.id, photo, caption)
 
 
 while __name__ == "__main__":
