@@ -91,8 +91,14 @@ def coinflip(message):
 
 # добавление и отнимание репутации
 @bot.message_handler(content_types=['text'])
-def reputation(message):
+def text_handler(message):
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
+        reputation(message)
+    elif any(element_a in ['лось', 'лося', 'лосю', 'лосе'] for element_a in message.text.lower().split()):
+        mooseMeme(message)
+
+
+def reputation(message):
         connect = sqlite3.connect("data.db")
         cursor = connect.cursor()
         cooldown = cursor.execute(f"SELECT cooldown from chat_{str(message.chat.id)[1:]} WHERE id = {message.from_user.id}").fetchone()[0]
@@ -130,6 +136,9 @@ def reputation(message):
                 bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.\nТеперь репутация равна {rep}")
         else:
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
+
+def mooseMeme(message):
+    bot.send_photo(message.chat.id, config.MOOSE_PHOTO_ID, caption=f'@{message.from_user.username}, вот такой?')
 
 
 while __name__ == "__main__":
