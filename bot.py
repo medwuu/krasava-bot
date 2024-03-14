@@ -1,4 +1,5 @@
 import time
+import re
 import random
 import logging
 import sqlite3
@@ -91,7 +92,8 @@ def text_handler(message):
     start(message)
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
-    elif any(element_a in ['лось', 'лося', 'лосю', 'лосе'] for element_a in message.text.lower().split()):
+    # монструозная строка. читаю справа налево: убираю знаки препинания (все НЕ буквы) -> с помощью split() создаю массив слов -> проверяю, есть ли слово "лось" в этом массиве
+    elif any(element_a in ['лось', 'лося', 'лосю', 'лосе'] for element_a in re.sub(r'[^\w\s]', '', message.text.lower()).split()):
         mooseMeme(message)
 
 
