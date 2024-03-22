@@ -1,3 +1,4 @@
+import os
 import time
 import re
 import random
@@ -5,12 +6,12 @@ import logging
 import sqlite3
 import telebot
 import requests
-import config
+from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
 # bot token
-TOKEN = config.TOKEN
-bot = telebot.TeleBot(TOKEN)
+load_dotenv()
+bot = telebot.TeleBot(os.getenv("TOKEN"))
 
 # регистрация пользователя в БД
 def start(message):
@@ -68,8 +69,9 @@ def ping_all(message):
     cursor = connect.cursor()
     members = cursor.execute(f"""SELECT username from chat_{str(message.chat.id)[1:]}""").fetchall()
     bot.delete_message(message.chat.id, message.message_id)
-    members_list = ", @".join([x[0] for x in members if x[0] != message.from_user.username])
-    bot.send_message(message.chat.id, f"@{message.from_user.username} упоминает всех\n||\(@{members_list}\)||", 'MarkdownV2')
+    members_list = "@" + ", @".join([x[0] for x in members if x[0] != message.from_user.username])
+    # использую html разметку, а не MD, потому что проблемы с никнеймами, в которых есть символ "_"
+    bot.send_message(message.chat.id, f"@{message.from_user.username} упоминает всех\n<span class=\"tg-spoiler\">({members_list})</span>", 'html')
 
 # подбросить монетку
 @bot.message_handler(commands=['coinflip'])
@@ -93,7 +95,8 @@ def text_handler(message):
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
     # монструозная строка. читаю справа налево: убираю знаки препинания (все НЕ буквы) -> с помощью split() создаю массив слов -> проверяю, есть ли слово "лось" в этом массиве
-    elif any(element_a in ['лось', 'лося', 'лосю', 'лосе'] for element_a in re.sub(r'[^\w\s]', '', message.text.lower()).split()):
+    elif any(element_a in ['лось', 'лося', 'лосю', 'лосем', 'лосём', 'лосе', 'лосей',
+                           'лоси', 'лосей', 'лосям', 'лосями', 'лосях'] for element_a in re.sub(r'[^\w\s]', '', message.text.lower()).split()):
         mooseMeme(message)
 
 
@@ -138,17 +141,20 @@ def reputation(message):
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 def mooseMeme(message):
-    if 'лось' in message.text.lower():
-        caption = f'@{message.from_user.username}, вот такой?'
-    elif 'лося' in message.text.lower():
-        caption = f'@{message.from_user.username}, вот такого?'
-    elif 'лосю' in message.text.lower():
-        caption = f'@{message.from_user.username}, вот такому?'
-    elif 'лосе' in message.text.lower():
-        caption = f'@{message.from_user.username}, вот таком?'
+    if 'лось' in message.text.lower().split(): ending = 'такой'
+    elif 'лося' in message.text.lower().split(): ending = 'такого'
+    elif 'лосю' in message.text.lower().split(): ending = 'такому'
+    elif 'лосем' in message.text.lower().split(): ending = 'таким'
+    elif 'лосём' in message.text.lower().split(): ending = 'такие'
+    elif 'лосе' in message.text.lower().split(): ending = 'о таком'
+    elif 'лосей' in message.text.lower().split(): ending = 'таких'
+    elif 'лоси' in message.text.lower().split(): ending = 'такие'
+    elif 'лосям' in message.text.lower().split(): ending = 'таким'
+    elif 'лосями' in message.text.lower().split(): ending = 'такими'
+    elif 'лосях' in message.text.lower().split(): ending = 'о таких'
     # тут лучше использовать id фотографии, но у меня на релизе не получалось. пришлось делать так
     with open('moose.jpg', 'rb') as photo:
-        bot.send_photo(message.chat.id, photo, caption)
+        bot.send_photo(message.chat.id, photo, f"@{message.from_user.username}, вот {ending}?")
 
 
 while __name__ == "__main__":
@@ -157,6 +163,8 @@ while __name__ == "__main__":
     try:
         logging.info("Bot start")
         bot.polling(True)
+    except requests.exceptions.ReadTimeout:
+        logging.warn("ReadTimeout error. Restarting bot...")
     except Exception as error:
         logging.critical(f"Error:\n{error}", exc_info=True)
         continue
