@@ -14,12 +14,30 @@ load_dotenv()
 bot = telebot.TeleBot(os.getenv("TOKEN"))
 
 # регистрация пользователя в БД
-def start(message):
+# TODO: принудительная регистрация при вступлении в чат
+@bot.message_handler(commands=['start'])
+def forseStart(message):
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    if str(message.chat.id)[0] != "-":
-        bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
-        return "dm"
+    if cursor.execute(f"SELECT id from chat_{str(message.chat.id)[1:]} WHERE id = {message.from_user.id}").fetchone() is None:
+        self_start(message)
+    if hasattr(message.reply_to_message, 'text'):
+        if cursor.execute(f"SELECT id from chat_{str(message.chat.id)[1:]} WHERE id = {message.reply_to_message.from_user.id}").fetchone() is None:
+            if message.reply_to_message.from_user.username:
+                username = message.reply_to_message.from_user.username
+            elif message.from_user.reply_to_message.last_name:
+                username = " ".join([message.reply_to_message.from_user.first_name, message.reply_to_message.from_user.last_name])
+            else:
+                username = message.reply_to_message.from_user.first_name
+            cursor.execute(f"INSERT INTO chat_{str(message.chat.id)[1:]} VALUES(?, ?, ?, ?);", [message.reply_to_message.from_user.id, username, 0, 0])
+            connect.commit()
+            bot.send_message(message.chat.id, f"Привет, @{message.reply_to_message.from_user.username}. Рад познакомиться с тобой! 😀\nТы можешь посмотреть список моих команд, написав /help")
+        else:
+            bot.send_message(message.chat.id, "Этот пользователь уже добавлен!")
+
+def self_start(message):
+    connect = sqlite3.connect("data.db")
+    cursor = connect.cursor()
     cursor.execute(f"""CREATE TABLE IF NOT EXISTS chat_{str(message.chat.id)[1:] if str(message.chat.id)[0] == "-" else message.chat.id}(
         id INTEGER,
         username TEXT,
@@ -91,7 +109,10 @@ def coinflip(message):
 
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
-    start(message)
+    if message.chat.type != "supergroup":
+        bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
+        return "dm"
+    self_start(message)
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
     # монструозная строка. читаю справа налево: убираю знаки препинания (все НЕ буквы) -> с помощью split() создаю массив слов -> проверяю, есть ли слово "лось" в этом массиве
