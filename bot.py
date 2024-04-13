@@ -3,41 +3,29 @@ import time
 import re
 import random
 import logging
-import sqlite3
 import telebot
 import requests
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
-# bot token
+import db
+
+
 load_dotenv()
 bot = telebot.TeleBot(os.getenv("TOKEN"))
 
 # регистрация пользователя в БД
 def start(message):
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
     if str(message.chat.id)[0] != "-":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return "dm"
-    cursor.execute(f"""CREATE TABLE IF NOT EXISTS chat_{str(message.chat.id)[1:] if str(message.chat.id)[0] == "-" else message.chat.id}(
-        id INTEGER,
-        username TEXT,
-        reputation INTEGER,
-        cooldown ITEGER
-    );""")
-    connect.commit()
-    id = message.from_user.id
-    user_check = cursor.execute(f"SELECT id from chat_{str(message.chat.id)[1:]} WHERE id = {id}").fetchone()
-    if user_check is None:
-        if message.from_user.username:
-            username = message.from_user.username
-        elif message.from_user.last_name:
-            username = " ".join([message.from_user.first_name, message.from_user.last_name])
-        else:
-            username = message.from_user.first_name
-        cursor.execute(f"INSERT INTO chat_{str(message.chat.id)[1:]} VALUES(?, ?, ?, ?);", [id, username, 0, 0])
-        connect.commit()
+    if not message.from_user.username:
+        bot.send_message(message.chat.id, f"Прости, пока не могу запомнить, как тебя зовут 🥺. Чтобы помочь мне, придумай себе никнейм!\n" +
+                         "Для этого перейди в настройки и впиши его в поле \"Имя пользователя\"")
+        return "no username"
+    db.createTable(message.chat.id)
+    if not db.isUserInDB(message.chat.id, message.from_user.id):
+        db.addUser(message.chat.id, message.from_user.id, message.from_user.username)
         bot.send_message(message.chat.id, f"Привет, @{message.from_user.username}. Рад познакомиться с тобой! 😀\nТы можешь посмотреть список моих команд, написав /help")
 
 # список команд бота
@@ -55,19 +43,16 @@ def help(message):
 # статистика по репутации всех пользователей чата
 @bot.message_handler(commands=['statistics'])
 def statistics(message):
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"""SELECT username, reputation FROM chat_{str(message.chat.id)[1:]} ORDER BY reputation DESC""")
-    record = cursor.fetchall()
-    user_stat = "@" + "\n@".join([user[0] + "   ---->   " + str(user[1]) for user in record])
+    # records = db.getStatistics(message.chat.id)
+    records = db.getStatistics(-1001710106034)
+    user_stat = "@" + "\n@".join([user[0] + "   ---->   " + str(user[1]) for user in records])
     bot.send_message(message.chat.id, f"Статистика репутации всех пользователей:\n{user_stat}")
 
 # пинг всех пользователей
 @bot.message_handler(commands=['all'])
 def ping_all(message):
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    members = cursor.execute(f"""SELECT username from chat_{str(message.chat.id)[1:]}""").fetchall()
+    # members = db.getUserList(message.chat.id)
+    members = db.getUserList(-1001710106034)
     bot.delete_message(message.chat.id, message.message_id)
     members_list = "@" + ", @".join([x[0] for x in members if x[0] != message.from_user.username])
     # использую html разметку, а не MD, потому что проблемы с никнеймами, в которых есть символ "_"
@@ -111,7 +96,6 @@ def reputation(message):
             bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
             return "cooldown"
         to_whom = message.text.split()[1][1:]
-        # вставить ник будущего бота
         if to_whom == bot.get_me().username:
             if message.text[0] == "-":
                 bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
@@ -141,6 +125,7 @@ def reputation(message):
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 def mooseMeme(message):
+    # FIXME: множественное число, слово слитно->пунктуация->лось. "он(лось)"
     if 'лось' in message.text.lower().split(): ending = 'такой'
     elif 'лося' in message.text.lower().split(): ending = 'такого'
     elif 'лосю' in message.text.lower().split(): ending = 'такому'
