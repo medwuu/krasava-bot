@@ -1,3 +1,4 @@
+import datetime
 import os
 import time
 import re
@@ -162,6 +163,7 @@ def reputation(message):
             bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 def mooseMeme(message):
+    
     if 'лось' in message.text.lower().split(): ending = 'такой'
     elif 'лося' in message.text.lower().split(): ending = 'такого'
     elif 'лосю' in message.text.lower().split(): ending = 'такому'
@@ -178,14 +180,16 @@ def mooseMeme(message):
         bot.send_photo(message.chat.id, photo, f"@{message.from_user.username}, вот {ending}?")
 
 
-while __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="logging.log", filemode="w",
+def main():
+    logging.basicConfig(level=logging.INFO, filename=f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log", filemode="w",
                         format="%(asctime)s %(levelname)s %(message)s")
     try:
         logging.info("Bot start")
         bot.polling(True)
     except requests.exceptions.ReadTimeout:
-        logging.warn("ReadTimeout error. Restarting bot...")
+        logging.warning("ReadTimeout error. Restarting bot...")
     except Exception as error:
         logging.critical(f"Error:\n{error}", exc_info=True)
-        continue
+
+while __name__ == "__main__":
+    main()
