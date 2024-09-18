@@ -122,6 +122,26 @@ def text_handler(message):
         mooseMeme(message)
 
 
+def anyText(message):
+    """Функция, которая применяется для каждого сообщения"""
+    reactions = ["👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊", "🤡", "🥱", "🥴", "😍", "🐳", "❤‍🔥", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍", "🤗", "🫡", "🎅", "🎄", "☃", "💅", "🤪", "🗿", "🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂", "🤷", "🤷‍♀", "😡"]
+    url = f'https://api.telegram.org/bot{os.getenv("TOKEN")}/setMessageReaction'
+    data = {
+        'chat_id': message.chat.id,
+        'message_id': message.message_id,
+        'reaction': [
+            {
+                'type': 'emoji',
+                'emoji': random.choice(reactions)
+            }
+        ],
+        'is_big': False
+    }
+
+    r = True
+    if random.randint(0, 10)==0: r = requests.post(url, json=data).ok
+    if not r: logging.warning("Failed while sending message reaction!")
+
 # добавление и отнимание репутации
 def reputation(message):
         connect = sqlite3.connect("data.db")
