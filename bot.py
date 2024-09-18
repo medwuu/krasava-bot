@@ -59,9 +59,9 @@ def self_start(message):
         connect.commit()
         bot.send_message(message.chat.id, f"Привет, @{message.from_user.username}. Рад познакомиться с тобой! 😀\nТы можешь посмотреть список моих команд, написав /help")
 
-# список команд бота
 @bot.message_handler(commands=['help'])
 def help(message):
+    """Список команд бота"""
     bot.send_message(message.chat.id, "Команды бота:\n" +
                     "/all – упомянуть всех людей в чате;\n" +
                     "/coinflip – подбросить монетку, чтобы решить спор;\n" +
@@ -71,9 +71,9 @@ def help(message):
                     "/help – помощь по командам.",
                     parse_mode='html')
 
-# статистика по репутации всех пользователей чата
 @bot.message_handler(commands=['statistics'])
 def statistics(message):
+    """Статистика по репутации всех пользователей чата"""
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
     cursor.execute(f"""SELECT username, reputation FROM chat_{str(message.chat.id)[1:]} ORDER BY reputation DESC""")
@@ -81,9 +81,9 @@ def statistics(message):
     user_stat = "@" + "\n@".join([user[0] + "   ---->   " + str(user[1]) for user in record])
     bot.send_message(message.chat.id, f"Статистика репутации всех пользователей:\n{user_stat}")
 
-# пинг всех пользователей
 @bot.message_handler(commands=['all'])
 def ping_all(message):
+    """Пинг всех пользователей"""
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
     members = cursor.execute(f"""SELECT username from chat_{str(message.chat.id)[1:]}""").fetchall()
@@ -92,9 +92,9 @@ def ping_all(message):
     # использую html разметку, а не MD, потому что проблемы с никнеймами, в которых есть символ "_"
     bot.send_message(message.chat.id, f"@{message.from_user.username} упоминает всех\n<span class=\"tg-spoiler\">({members_list})</span>", 'html')
 
-# подбросить монетку
 @bot.message_handler(commands=['coinflip'])
 def coinflip(message):
+    """Подбросить монетку"""
     bot.delete_message(message.chat.id, message.message_id)
     min_num = 0
     max_num = 1
@@ -110,6 +110,7 @@ def coinflip(message):
 
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
+    anyText(message)
     if message.chat.type != "supergroup":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return "dm"
@@ -142,48 +143,47 @@ def anyText(message):
     if random.randint(0, 10)==0: r = requests.post(url, json=data).ok
     if not r: logging.warning("Failed while sending message reaction!")
 
-# добавление и отнимание репутации
 def reputation(message):
-        connect = sqlite3.connect("data.db")
-        cursor = connect.cursor()
-        cooldown = cursor.execute(f"SELECT cooldown from chat_{str(message.chat.id)[1:]} WHERE id = {message.from_user.id}").fetchone()[0]
-        # проверка на кулдаун
-        if round(time.time()) - cooldown < 3600:
-            cooldown_remain = int(((time.time() - cooldown - 3600) / 60) // -1)
-            bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
-            return "cooldown"
-        to_whom = message.text.split()[1][1:]
-        # вставить ник будущего бота
-        if to_whom == bot.get_me().username:
-            if message.text[0] == "-":
-                bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
-            else:
-                bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
-            return "rep bot"
-        if message.from_user.username != to_whom:
-            cursor.execute(f"SELECT username, reputation from chat_{str(message.chat.id)[1:]}")
-            current = cursor.fetchall()
-            for user in current:
-                if user[0] == to_whom:
-                    rep = user[1] + 1 if message.text[0] == "+" else user[1] - 1
-                    break
-            try:
-                cursor.execute(f"""UPDATE chat_{str(message.chat.id)[1:]} set reputation = ? where username = ?""", (rep, to_whom))
-            except UnboundLocalError:
-                bot.send_message(message.chat.id, "Такого пользователя нет в чате или он не написал /start")
-                return UnboundLocalError
-            cursor.execute(f"""UPDATE chat_{str(message.chat.id)[1:]} set cooldown = {time.time()} where id = {message.from_user.id}""")
-            connect.commit()
-            bot.delete_message(message.chat.id, message.message_id)
-            try:
-                bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: {message.text.split(' ', 2)[2]}.\nТеперь репутация равна {rep}")
-            except IndexError:
-                bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.\nТеперь репутация равна {rep}")
+    """Добавление и отнимание репутации"""
+    connect = sqlite3.connect("data.db")
+    cursor = connect.cursor()
+    cooldown = cursor.execute(f"SELECT cooldown from chat_{str(message.chat.id)[1:]} WHERE id = {message.from_user.id}").fetchone()[0]
+    # проверка на кулдаун
+    if round(time.time()) - cooldown < 3600:
+        cooldown_remain = int(((time.time() - cooldown - 3600) / 60) // -1)
+        bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
+        return "cooldown"
+    to_whom = message.text.split()[1][1:]
+    # вставить ник будущего бота
+    if to_whom == bot.get_me().username:
+        if message.text[0] == "-":
+            bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
         else:
-            bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
+            bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
+        return "rep bot"
+    if message.from_user.username != to_whom:
+        cursor.execute(f"SELECT username, reputation from chat_{str(message.chat.id)[1:]}")
+        current = cursor.fetchall()
+        for user in current:
+            if user[0] == to_whom:
+                rep = user[1] + 1 if message.text[0] == "+" else user[1] - 1
+                break
+        try:
+            cursor.execute(f"""UPDATE chat_{str(message.chat.id)[1:]} set reputation = ? where username = ?""", (rep, to_whom))
+        except UnboundLocalError:
+            bot.send_message(message.chat.id, "Такого пользователя нет в чате или он не написал /start")
+            return UnboundLocalError
+        cursor.execute(f"""UPDATE chat_{str(message.chat.id)[1:]} set cooldown = {time.time()} where id = {message.from_user.id}""")
+        connect.commit()
+        bot.delete_message(message.chat.id, message.message_id)
+        try:
+            bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: {message.text.split(' ', 2)[2]}.\nТеперь репутация равна {rep}")
+        except IndexError:
+            bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.\nТеперь репутация равна {rep}")
+    else:
+        bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
 
 def mooseMeme(message):
-    
     if 'лось' in message.text.lower().split(): ending = 'такой'
     elif 'лося' in message.text.lower().split(): ending = 'такого'
     elif 'лосю' in message.text.lower().split(): ending = 'такому'
