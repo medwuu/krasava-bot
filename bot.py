@@ -14,17 +14,16 @@ import db
 load_dotenv()
 bot = telebot.TeleBot(os.getenv("TOKEN"))
 
-# регистрация пользователя в БД
 def start(message):
     """Регистрация пользователя в БД"""
     if str(message.chat.id)[0] != "-":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
-        return "dm"
+        return
     # TODO: добавление пользователя без username
     if not message.from_user.username:
         bot.send_message(message.chat.id, f"Прости, пока не могу запомнить, как тебя зовут 🥺. Чтобы помочь мне, придумай себе никнейм!\n" +
                                           "Для этого перейди в настройки и впиши его в поле \"Имя пользователя\"")
-        return "no username"
+        return
     db.createTable(message.chat.id)
     user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
     if not user_in_db:
@@ -67,7 +66,7 @@ def ping_all(message):
 
 @bot.message_handler(commands=['coinflip'])
 def coinflip(message):
-    """Подбросить монетку"""
+    """Подбросить монетку (на базе [random.org](https://random.org))"""
     start(message)
     bot.delete_message(message.chat.id, message.message_id)
     min_num = 0
@@ -84,10 +83,11 @@ def coinflip(message):
 
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
+    start(message)
     anyText(message)
     if message.chat.type != "supergroup":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
-        return "dm"
+        return
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
 
@@ -107,7 +107,6 @@ def anyText(message):
         ],
         'is_big': False
     }
-
     r = True
     if random.randint(0, 10)==0: r = requests.post(url, json=data).ok
     if not r: logging.warning("Failed while sending message reaction!")
@@ -120,9 +119,19 @@ def reputation(message):
     except IndexError:
         bot.send_message(message.chat.id, "Ошибка при вводе запроса. Проверьте синтаксис, написав команду /help")
         return
+    
+    # репутация бота
+    if to_whom == bot.get_me().username:
+        if message.text[0] == "-":
+            bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
+        else:
+            bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
+        return
 
+    # есть ли пользователь в БД
     if not db.isUserInDBByUsername(message.chat.id, to_whom):
         bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
+        return
 
     # проверка на кулдаун
     cooldown = db.getCooldown(message.chat.id, message.from_user.id)
@@ -131,15 +140,8 @@ def reputation(message):
         bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
         return
 
-    # репутация бота
-    if to_whom == bot.get_me().username:
-        if message.text[0] == "-":
-            bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
-        else:
-            bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
-        return
     # репутация себе
-    elif message.from_user.username == to_whom and message.text[0] in ["+", "-"]:
+    if message.from_user.username == to_whom and message.text[0] in ["+", "-"]:
         bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
     # репутация другому (так и надо)
     elif message.from_user.username != to_whom and message.text[0] in ["+", "-"]:
