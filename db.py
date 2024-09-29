@@ -14,7 +14,13 @@ def createTable(chat_id):
 def isUserInDB(chat_id, user_id):
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    return cursor.execute(f"SELECT id from chat_{str(chat_id).replace('-', '')} WHERE id={user_id}").fetchone()
+    return cursor.execute(f"SELECT id, username from chat_{str(chat_id).replace('-', '')} WHERE id={user_id}").fetchone()
+
+def updateUsername(chat_id, user_id, new_username):
+    connect = sqlite3.connect("data.db")
+    cursor = connect.cursor()
+    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET username='{new_username}' WHERE id={user_id}")
+    connect.commit()
 
 def isUserInDBByUsername(chat_id, username):
     connect = sqlite3.connect("data.db")

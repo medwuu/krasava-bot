@@ -19,18 +19,24 @@ def start(message):
     if str(message.chat.id)[0] != "-":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return "dm"
+    # TODO: добавление пользователя без username
     if not message.from_user.username:
         bot.send_message(message.chat.id, f"Прости, пока не могу запомнить, как тебя зовут 🥺. Чтобы помочь мне, придумай себе никнейм!\n" +
-                         "Для этого перейди в настройки и впиши его в поле \"Имя пользователя\"")
+                                          "Для этого перейди в настройки и впиши его в поле \"Имя пользователя\"")
         return "no username"
     db.createTable(message.chat.id)
-    if not db.isUserInDB(message.chat.id, message.from_user.id):
+    user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
+    if not user_in_db:
         db.addUser(message.chat.id, message.from_user.id, message.from_user.username)
         bot.send_message(message.chat.id, f"Привет, @{message.from_user.username}. Рад познакомиться с тобой! 😀\nТы можешь посмотреть список моих команд, написав /help")
+    elif user_in_db[1] != message.from_user.username:
+        db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
+        bot.send_message(message.chat.id, "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты")
 
 # список команд бота
 @bot.message_handler(commands=['help'])
 def help(message):
+    start(message)
     bot.send_message(message.chat.id, "Команды бота:\n" +
                     "/all – упомянуть всех людей в чате;\n" +
                     "/coinflip – подбросить монетку, чтобы решить спор;\n" +
@@ -43,16 +49,16 @@ def help(message):
 # статистика по репутации всех пользователей чата
 @bot.message_handler(commands=['statistics'])
 def statistics(message):
-    # records = db.getStatistics(message.chat.id)
-    records = db.getStatistics(-1001710106034)
+    start(message)
+    records = db.getStatistics(message.chat.id)
     user_stat = "@" + "\n@".join([user[0] + "   ---->   " + str(user[1]) for user in records])
     bot.send_message(message.chat.id, f"Статистика репутации всех пользователей:\n{user_stat}")
 
 # пинг всех пользователей
 @bot.message_handler(commands=['all'])
 def ping_all(message):
-    # members = db.getUserList(message.chat.id)
-    members = db.getUserList(-1001710106034)
+    start(message)
+    members = db.getUserList(message.chat.id)
     bot.delete_message(message.chat.id, message.message_id)
     members_list = "@" + ", @".join([x[0] for x in members if x[0] != message.from_user.username])
     # использую html разметку, а не MD, потому что проблемы с никнеймами, в которых есть символ "_"
@@ -61,6 +67,7 @@ def ping_all(message):
 # подбросить монетку
 @bot.message_handler(commands=['coinflip'])
 def coinflip(message):
+    start(message)
     bot.delete_message(message.chat.id, message.message_id)
     min_num = 0
     max_num = 1
@@ -87,42 +94,42 @@ def text_handler(message):
 
 # добавление и отнимание репутации
 def reputation(message):
-        # проверка правильности написания команды
+    # проверка правильности написания команды
+    try:
+        to_whom = message.text.split()[1][1:]
+    except IndexError:
+        bot.send_message(message.chat.id, "Ошибка при вводе запроса. Проверьте синтаксис, написав команду /help")
+        return
+
+    if not db.isUserInDBByUsername(message.chat.id, to_whom):
+        bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
+
+    # проверка на кулдаун
+    cooldown = db.getCooldown(message.chat.id, message.from_user.id)
+    if round(time.time()) - cooldown < 3600:
+        cooldown_remain = int(((time.time() - cooldown - 3600) / 60) // -1)
+        bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
+        return
+
+    # репутация бота
+    if to_whom == bot.get_me().username:
+        if message.text[0] == "-":
+            bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
+        else:
+            bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
+        return
+    # репутация себе
+    elif message.from_user.username == to_whom and message.text[0] in ["+", "-"]:
+        bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
+    # репутация другому (так и надо)
+    elif message.from_user.username != to_whom and message.text[0] in ["+", "-"]:
+        db.updateReputation(message.chat.id, to_whom, message.text[0])
+        db.setCooldown(message.chat.id, to_whom, time.time())
+        bot.delete_message(message.chat.id, message.message_id)
         try:
-            to_whom = message.text.split()[1][1:]
+            bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: {message.text.split(' ', 2)[2]}.")
         except IndexError:
-            bot.send_message(message.chat.id, "Ошибка при вводе запроса. Проверьте синтаксис, написав команду /help")
-            return
-
-        if not db.isUserInDBByUsername(message.chat.id, to_whom):
-            bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
-
-        # проверка на кулдаун
-        cooldown = db.getCooldown(message.chat.id, message.from_user.id)
-        if round(time.time()) - cooldown < 3600:
-            cooldown_remain = int(((time.time() - cooldown - 3600) / 60) // -1)
-            bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
-            return
-
-        # репутация бота
-        if to_whom == bot.get_me().username:
-            if message.text[0] == "-":
-                bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
-            else:
-                bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
-            return
-        # репутация себе
-        elif message.from_user.username == to_whom and message.text[0] in ["+", "-"]:
-            bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
-        # репутация другому (так и надо)
-        elif message.from_user.username != to_whom and message.text[0] in ["+", "-"]:
-            db.updateReputation(message.chat.id, to_whom, message.text[0])
-            db.setCooldown(message.chat.id, to_whom, time.time())
-            bot.delete_message(message.chat.id, message.message_id)
-            try:
-                bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: {message.text.split(' ', 2)[2]}.")
-            except IndexError:
-                bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.")
+            bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.")
 
 def mooseMeme(message):
     # FIXME: множественное число, слово слитно->пунктуация->лось. "он(лось)"
