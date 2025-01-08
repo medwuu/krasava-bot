@@ -7,6 +7,7 @@ import telebot
 import requests
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
+from multipledispatch import dispatch
 
 import db
 
@@ -19,19 +20,38 @@ def start(message):
     if str(message.chat.id)[0] != "-":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return
-    # TODO: добавление пользователя без username
-    if not message.from_user.username:
-        bot.send_message(message.chat.id, f"Прости, пока не могу запомнить, как тебя зовут 🥺. Чтобы помочь мне, придумай себе никнейм!\n" +
-                                          "Для этого перейди в настройки и впиши его в поле \"Имя пользователя\"")
-        return
     db.createTable(message.chat.id)
     user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
+    # добавление нового пользователя
     if not user_in_db:
-        db.addUser(message.chat.id, message.from_user.id, message.from_user.username)
-        bot.send_message(message.chat.id, f"Привет, @{message.from_user.username}. Рад познакомиться с тобой! 😀\nТы можешь посмотреть список моих команд, написав /help")
-    elif user_in_db[1] != message.from_user.username:
+        db.addUser(message.chat.id, message.from_user.id, message.from_user.username, message.from_user.full_name)
+        mention = getMention(message)
+        bot.send_message(message.chat.id,
+                         f"Привет, {mention}. Рад познакомиться с тобой! 😀\n" +
+                         "Ты можешь посмотреть список моих команд, написав /help",
+                         parse_mode='html')
+
+    # обновление username
+    if user_in_db[1] != str(message.from_user.username):
         db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
-        bot.send_message(message.chat.id, "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты")
+        if message.from_user.username:
+            bot.send_message(message.chat.id,
+                             "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉")
+        else:
+            bot.send_message(message.chat.id,
+                             "Ой-ой! Вижу, ты удалил свой никнейм. Надеюсь, на то есть веская причина. Не переживай, я всё ещё тебя узнаю 😉")
+
+    # обновление full_name. думаю, лучше проверять при каждом обращении к боту для поддержания актуальности данных
+    if user_in_db[2] != message.from_user.full_name:
+        db.updateFullName(message.chat.id, message.from_user.id, message.from_user.full_name)
+
+# TODO при вызове команды не выполняется обновление username и full_name
+@bot.message_handler(commands=['start'])
+def forcedStart(message):
+    if not db.isUserInDB(message.chat.id, message.from_user.id):
+        start(message)
+        return
+    bot.send_message(message.chat.id, "Не нужно, мы уже знакомы 😊")
 
 @bot.message_handler(commands=['help'])
 def help(message):
@@ -51,8 +71,8 @@ def statistics(message):
     """Статистика по репутации всех пользователей чата"""
     start(message)
     records = db.getStatistics(message.chat.id)
-    user_stat = "@" + "\n@".join([user[0] + "   ---->   " + str(user[1]) for user in records])
-    bot.send_message(message.chat.id, f"Статистика репутации всех пользователей:\n{user_stat}")
+    user_stat = "\n".join([getMention(*user[:-1]) + "   ---->   " + str(user[3]) for user in records])
+    bot.send_message(message.chat.id, f"Статистика репутации всех пользователей:\n{user_stat}", parse_mode='html')
 
 @bot.message_handler(commands=['all'])
 def ping_all(message):
@@ -60,9 +80,8 @@ def ping_all(message):
     start(message)
     members = db.getUserList(message.chat.id)
     bot.delete_message(message.chat.id, message.message_id)
-    members_list = "@" + ", @".join([x[0] for x in members if x[0] != message.from_user.username])
-    # использую html разметку, а не MD, потому что проблемы с никнеймами, в которых есть символ "_"
-    bot.send_message(message.chat.id, f"@{message.from_user.username} упоминает всех\n<span class=\"tg-spoiler\">({members_list})</span>", 'html')
+    members_list = ", ".join([getMention(*x) for x in members if x[0] != message.from_user.id])
+    bot.send_message(message.chat.id, f"{getMention(message)} упоминает всех\n<span class=\"tg-spoiler\">({members_list})</span>", parse_mode='html')
 
 @bot.message_handler(commands=['coinflip'])
 def coinflip(message):
@@ -77,7 +96,7 @@ def coinflip(message):
         return
     soup = BeautifulSoup(r.text, "html.parser")
     answer = int(soup.find("span").text.strip())
-    bot_message = bot.send_message(message.chat.id, f"@{message.from_user.username} подбрасывает монетку и выпадает...")
+    bot_message = bot.send_message(message.chat.id, f"{getMention(message)} подбрасывает монетку и выпадает...", parse_mode='html')
     time.sleep(2)
     bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if answer == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
 
@@ -113,11 +132,21 @@ def anyText(message):
 
 def reputation(message):
     """Добавление и отнимание репутации"""
+    # TODO: дописать проверки на соответствие синтаксису
     # проверка правильности написания команды
     try:
-        to_whom = message.text.split()[1][1:]
+        # с usernam'ом
+        if message.entities[0].type == 'mention' and message.text.split()[1][1] == "@":
+            to_whom = message.text.split()[1][1:]
+            to_whom_mention = "@" + to_whom
+        # без username
+        elif message.entities[0].type == 'text_mention':
+            to_whom = message.entities[0].user.id
+            to_whom_mention = f'<a href=\"tg://user?id={to_whom}\">{message.entities[0].user.full_name}</a>'
+        else:
+            raise IndexError
     except IndexError:
-        bot.send_message(message.chat.id, "Ошибка при вводе запроса. Проверьте синтаксис, написав команду /help")
+        bot.send_message(message.chat.id, "Ошибка при вводе команды. Проверьте синтаксис, написав команду /help")
         return
     
     # репутация бота
@@ -129,7 +158,7 @@ def reputation(message):
         return
 
     # есть ли пользователь в БД
-    if not db.isUserInDBByUsername(message.chat.id, to_whom):
+    if not db.isUserInDBByUsername(message.chat.id, to_whom) and not db.isUserInDB(message.chat.id, to_whom):
         bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
         return
 
@@ -141,17 +170,58 @@ def reputation(message):
         return
 
     # репутация себе
-    if message.from_user.username == to_whom and message.text[0] in ["+", "-"]:
+    if message.from_user.username == to_whom or message.from_user.id == to_whom:
         bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
     # репутация другому (так и надо)
-    elif message.from_user.username != to_whom and message.text[0] in ["+", "-"]:
+    else:
         db.updateReputation(message.chat.id, to_whom, message.text[0])
         db.setCooldown(message.chat.id, to_whom, time.time())
         bot.delete_message(message.chat.id, message.message_id)
-        try:
-            bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: {message.text.split(' ', 2)[2]}.")
-        except IndexError:
-            bot.send_message(message.chat.id, f"@{message.from_user.username} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию @{to_whom}.\nПричина: нет.")
+        if len(message.text.split(' ')) > 2:
+            bot.send_message(message.chat.id, f"{getMention(message)} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию {to_whom_mention}.\nПричина: {message.text.split(' ', 2)[2]}.", parse_mode='html')
+        else:
+            bot.send_message(message.chat.id, f"{getMention(message)} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию {to_whom_mention}.\nПричина: нет.", parse_mode='html')
+
+
+@dispatch(telebot.types.Message)
+def getMention(message):
+    """
+    Определяет вид упоминания пользователя (у функции есть перегрузка, см. ниже)
+
+    :param message: "сырое" сообщение от пользователя
+    :type message: `telebot.types.Message`
+
+    :return: @username (при наличии) или ссылка вида @full_name (html разметка и ссылка вида tg://user?id=xxxxxxx)
+    :rtype: `str`
+    """
+    if message.from_user.username and message.from_user.username != 'None':
+        mention = "@" + message.from_user.username
+    else:
+        mention = f"<a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a>"
+    return mention
+
+@dispatch(int, str, str)
+def getMention(id, username, full_name):
+    """
+    Определяет вид упоминания пользователя (у функции есть перегрузка, см. выше)
+
+    :param id: ID пользователя
+    :type user_id: `int`
+
+    :param username: Username пользователя
+    :type username: `str`
+
+    :param full_name: Имя пользователя (не путать с username)
+    :type username: `str`
+
+    :return: @username (при наличии) или ссылка вида @full_name (html разметка и ссылка вида tg://user?id=xxxxxxx)
+    :rtype: `str`
+    """
+    if username and username != 'None':
+        mention = "@" + username
+    else:
+        mention = f"<a href=\"tg://user?id={id}\">{full_name}</a>"
+    return mention
 
 
 def main():
