@@ -91,11 +91,13 @@ def coinflip(message):
     min_num = 0
     max_num = 1
     r = requests.get(f"https://www.random.org/integers/?num=1&min={min_num}&max={max_num}&col=1&base=10&format=plain&rnd=new&cl=w")
-    if not r.ok:
-        bot.send_message(message.chat.id, "Произошла ошибка при обращении к random.org.\nПопробуйте позже!")
-        return
-    soup = BeautifulSoup(r.text, "html.parser")
-    answer = int(soup.find("span").text.strip())
+    if r.ok:
+        soup = BeautifulSoup(r.text, "html.parser")
+        answer = int(soup.find("span").text.strip())
+    # на случай ошибки с random.org
+    else:
+        bot.send_message(message.chat.id, "Произошла ошибка при обращении к random.org.\nБудет использован встроенный рандомайзер")
+        answer = random.randint(0, 1)
     bot_message = bot.send_message(message.chat.id, f"{getMention(message)} подбрасывает монетку и выпадает...", parse_mode='html')
     time.sleep(2)
     bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if answer == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
@@ -126,9 +128,12 @@ def anyText(message):
         ],
         'is_big': False
     }
+
     r = True
-    if random.randint(0, 10)==0: r = requests.post(url, json=data).ok
-    if not r: logging.warning("Failed while sending message reaction!")
+    if random.randint(0, 10)==0:
+        r = requests.post(url, json=data)
+        if not r.ok:
+            logging.warning("Failed while sending message reaction!")
 
 def reputation(message):
     """Добавление и отнимание репутации"""
