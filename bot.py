@@ -137,11 +137,12 @@ def anyText(message):
 
 def reputation(message):
     """Добавление и отнимание репутации"""
-    # TODO: дописать проверки на соответствие синтаксису
     # проверка правильности написания команды
     try:
+        if not message.entities:
+            raise TypeError
         # с usernam'ом
-        if message.entities[0].type == 'mention' and message.text.split()[1][1] == "@":
+        if message.entities[0].type == 'mention' and message.text.split()[1][0] == "@":
             to_whom = message.text.split()[1][1:]
             to_whom_mention = "@" + to_whom
         # без username
@@ -150,10 +151,10 @@ def reputation(message):
             to_whom_mention = f'<a href=\"tg://user?id={to_whom}\">{message.entities[0].user.full_name}</a>'
         else:
             raise IndexError
-    except IndexError:
+    except (IndexError, TypeError):
         bot.send_message(message.chat.id, "Ошибка при вводе команды. Проверьте синтаксис, написав команду /help")
         return
-    
+
     # репутация бота
     if to_whom == bot.get_me().username:
         if message.text[0] == "-":
@@ -183,7 +184,11 @@ def reputation(message):
         db.setCooldown(message.chat.id, to_whom, time.time())
         bot.delete_message(message.chat.id, message.message_id)
         if len(message.text.split(' ')) > 2:
-            bot.send_message(message.chat.id, f"{getMention(message)} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию {to_whom_mention}.\nПричина: {message.text.split(' ', 2)[2]}.", parse_mode='html')
+            reputation_reason = message.html_text.split(' ', 2)[2]
+            if len(reputation_reason) > 100:
+                bot.send_message(message.chat.id, "Причина слишком длинная! Сообщение будет обрезано до 100 символов")
+                reputation_reason = message.text.split(' ', 2)[2][:100] + "..."
+            bot.send_message(message.chat.id, f"{getMention(message)} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию {to_whom_mention}.\nПричина: {reputation_reason}.", parse_mode='html')
         else:
             bot.send_message(message.chat.id, f"{getMention(message)} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию {to_whom_mention}.\nПричина: нет.", parse_mode='html')
 
