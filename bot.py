@@ -15,6 +15,8 @@ import db
 load_dotenv()
 bot = telebot.TeleBot(os.getenv("TOKEN"))
 
+
+@bot.message_handler(commands=['start'])
 def start(message):
     """Регистрация пользователя в БД"""
     if str(message.chat.id)[0] != "-":
@@ -30,6 +32,7 @@ def start(message):
                          f"Привет, {mention}. Рад познакомиться с тобой! 😀\n" +
                          "Ты можешь посмотреть список моих команд, написав /help",
                          parse_mode='html')
+        return
 
     # обновление username
     if user_in_db[1] != str(message.from_user.username):
@@ -45,13 +48,10 @@ def start(message):
     if user_in_db[2] != message.from_user.full_name:
         db.updateFullName(message.chat.id, message.from_user.id, message.from_user.full_name)
 
-# TODO при вызове команды не выполняется обновление username и full_name
-@bot.message_handler(commands=['start'])
-def forcedStart(message):
-    if not db.isUserInDB(message.chat.id, message.from_user.id):
-        start(message)
-        return
-    bot.send_message(message.chat.id, "Не нужно, мы уже знакомы 😊")
+    else:
+        # повторное прописывание "/start"
+        if message.text == "/start":
+            bot.send_message(message.chat.id, "Не нужно, мы уже знакомы 😊")
 
 @bot.message_handler(commands=['help'])
 def help(message):
