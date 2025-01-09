@@ -222,3 +222,21 @@ def updateReputation(chat_id: int, user: str | int, action: str)->None:
     else:
         cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE id='{user}'")
     connect.commit()
+
+def deleteUser(chat_id: int, user_id: int)->None:
+    """
+    Удаление пользователя из базы данных
+
+    :param chat_id: ID чата
+    :type chat_id: `int`
+
+    :param user_id: ID пользователя
+    :type user_id: `int`
+
+    :return: При успехе удаляет запись из БД
+    :rtype: `None`
+    """
+    connect = sqlite3.connect("data.db")
+    cursor = connect.cursor()
+    cursor.execute(f"DELETE FROM chat_{str(chat_id).replace('-', '')} WHERE id={user_id}")
+    connect.commit()

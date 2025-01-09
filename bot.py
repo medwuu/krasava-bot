@@ -115,11 +115,13 @@ def text_handler(message):
 
 @bot.message_handler(content_types=['new_chat_members'])
 def newChatMembers(message):
+    """Реакция на присоединение пользователя к чату"""
     start(message)
 
 # TODO: защита репутации от абуза входа-выхода из чата
 @bot.message_handler(content_types=['left_chat_member'])
 def leftChatMember(message):
+    """Реакция на выход пользователя из чата"""
     db.deleteUser(message.chat.id, message.from_user.id)
     bot.send_message(message.chat.id, f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html')
 
@@ -204,7 +206,7 @@ def reputation(message):
 
 
 @dispatch(telebot.types.Message)
-def getMention(message):
+def getMention(message: telebot.types.Message)->str:
     """
     Определяет вид упоминания пользователя (у функции есть перегрузка, см. ниже)
 
@@ -221,7 +223,7 @@ def getMention(message):
     return mention
 
 @dispatch(int, str, str)
-def getMention(id, username, full_name):
+def getMention(id: int, username: str, full_name: str)->str:
     """
     Определяет вид упоминания пользователя (у функции есть перегрузка, см. выше)
 
