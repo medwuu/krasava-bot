@@ -113,6 +113,17 @@ def text_handler(message):
         reputation(message)
 
 
+@bot.message_handler(content_types=['new_chat_members'])
+def newChatMembers(message):
+    start(message)
+
+# TODO: защита репутации от абуза входа-выхода из чата
+@bot.message_handler(content_types=['left_chat_member'])
+def leftChatMember(message):
+    db.deleteUser(message.chat.id, message.from_user.id)
+    bot.send_message(message.chat.id, f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html')
+
+
 def anyText(message):
     """Функция, которая применяется для каждого сообщения"""
     if random.randint(0, 10)==0:
