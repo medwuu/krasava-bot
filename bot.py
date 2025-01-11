@@ -38,11 +38,9 @@ def start(message):
     if user_in_db[1] != str(message.from_user.username):
         db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
         if message.from_user.username:
-            bot.send_message(message.chat.id,
-                             "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉")
+            bot.send_message(message.chat.id, "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉")
         else:
-            bot.send_message(message.chat.id,
-                             "Ой-ой! Вижу, ты удалил свой никнейм. Надеюсь, на то есть веская причина. Не переживай, я всё ещё тебя узнаю 😉")
+            bot.send_message(message.chat.id, "Ой-ой! Вижу, ты удалил свой никнейм. Надеюсь, на то есть веская причина. Не переживай, я всё ещё тебя узнаю 😉")
 
     # обновление full_name. думаю, лучше проверять при каждом обращении к боту для поддержания актуальности данных
     if user_in_db[2] != message.from_user.full_name:
@@ -102,6 +100,7 @@ def coinflip(message):
     time.sleep(2)
     bot.edit_message_text(f"{bot_message.text}\n<b>{'орёл' if answer == 0 else 'решка'}</b>{' – подкрутка? 🤨' if random.randint(0, 10) == 5 else ''}", message.chat.id, bot_message.message_id, parse_mode='html')
 
+
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
     start(message)
@@ -111,7 +110,6 @@ def text_handler(message):
         return
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
-
 
 @bot.message_handler(content_types=['new_chat_members'])
 def newChatMembers(message):
@@ -247,15 +245,18 @@ def getMention(id: int, username: str, full_name: str)->str:
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, filename=f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log", filemode="w",
-                        format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(level=logging.INFO,
+                        filename=f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log",
+                        filemode="w",
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        force=True)
     try:
         logging.info("Bot start")
         bot.polling(True)
-    except requests.exceptions.ReadTimeout:
-        logging.warning("ReadTimeout error. Restarting bot...")
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+        logging.warning("Requests lib error. Restarting bot...\n\n")
     except Exception as error:
-        logging.critical(f"Error:\n{error}", exc_info=True)
+        logging.critical(f"Unexpected error:\n{error}", exc_info=True)
 
 while __name__ == "__main__":
     main()
