@@ -207,7 +207,7 @@ def reputation(message):
     # репутация другому (так и надо)
     else:
         db.updateReputation(message.chat.id, to_whom, message.text[0])
-        db.setCooldown(message.chat.id, to_whom, time.time())
+        db.setCooldown(message.chat.id, message.from_user.id, time.time())
         bot.delete_message(message.chat.id, message.message_id)
         if len(message.text.split(' ')) > 2:
             reputation_reason = message.html_text.split(' ', 2)[2]
@@ -263,7 +263,7 @@ def getMention(id: int, username: str, full_name: str)->str:
 def main():
     logging.basicConfig(level=logging.INFO,
                         filename=f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log",
-                        filemode="w",
+                        filemode="a",
                         format="%(asctime)s %(levelname)s %(message)s",
                         force=True)
     try:

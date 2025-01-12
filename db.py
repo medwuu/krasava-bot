@@ -98,7 +98,7 @@ def isUserInDBByUsername(chat_id: int, username: str)->sqlite3.Cursor:
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    return cursor.execute(f"SELECT id from chat_{str(chat_id).replace('-', '')} WHERE username='{username}'").fetchone()
+    return cursor.execute(f"SELECT id from chat_{str(chat_id).replace('-', '')} WHERE username='{username}' AND is_active=1").fetchone()
 
 def addUser(chat_id: int, user_id: int, username: str, full_name: str)->None:
     """
@@ -121,7 +121,7 @@ def addUser(chat_id: int, user_id: int, username: str, full_name: str)->None:
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    cursor.execute(f"INSERT INTO chat_{str(chat_id).replace('-', '')} VALUES('{user_id}', '{username}', '{full_name}', 0, 0)")
+    cursor.execute(f"INSERT INTO chat_{str(chat_id).replace('-', '')} (id, username, full_name) VALUES('{user_id}', '{username}', '{full_name}')")
     connect.commit()
 
 def getStatistics(chat_id: int)->list:
@@ -172,31 +172,25 @@ def getCooldown(chat_id: int, user_id: int)->int:
     cursor.execute(f"SELECT cooldown from chat_{str(chat_id).replace('-', '')} WHERE id={user_id}")
     return cursor.fetchone()[0]
 
-def setCooldown(chat_id: int, user: str | int, timestamp: int | float)->None:
+def setCooldown(chat_id: int, user_id: int, timestamp: int | float)->None:
     """
     Установление нового значения `cooldown` для пользователя
 
     :param chat_id: ID чата
     :type chat_id: `int`
 
-    :param user: Username (если задан) или ID пользователя
-    :type user: `str | int`
+    :param user: ID пользователя
+    :type user: `int`
 
     :param timestamp: Текущее значение `timestamp`
-    :type timestamp: `int`
+    :type timestamp: `int | float`
 
     :return: При успехе обновляет значение `timestamp`
     :rtype: `None`
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-
-    # идентификация по username
-    if type(user) == str:
-        cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET cooldown={timestamp} WHERE username='{user}'")
-    # идентификация по id (если username не задан)
-    else:
-        cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET cooldown={timestamp} WHERE id='{user}'")
+    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET cooldown={timestamp} WHERE id='{user_id}'")
     connect.commit()
 
 def updateReputation(chat_id: int, user: str | int, action: str)->None:
