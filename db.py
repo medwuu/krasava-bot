@@ -13,11 +13,13 @@ def createTable(chat_id: int)->None:
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
     cursor.execute(f"""CREATE TABLE IF NOT EXISTS 'chat_{str(chat_id).replace('-', '')}'(
-        id INT PRIMARY KEY,
-        username TEXT,
+        id INT NOT NULL UNIQUE,
+        username TEXT NOT NULL UNIQUE,
         full_name TEXT,
-        reputation INT,
-        cooldown INT
+        reputation INT DEFAULT 0,
+        cooldown INT DEFAULT 0,
+        is_active INT DEFAULT 1,
+        PRIMARY KEY("id")
     );""")
     connect.commit()
 
@@ -31,12 +33,13 @@ def isUserInDB(chat_id: int, user_id: int)->sqlite3.Cursor | None:
     :param user_id: ID пользователя, наличие которого надо проверить в `chat_id`
     :type user_id: `int`
 
-    :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из id, username и full_name. Иначе – None
+    :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из:
+    `[id, username, full_name и "был ли пользователь раньше в этом чате"]`. Иначе – None
     :rtype: `sqlite3.Cursor | None`
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    return cursor.execute(f"SELECT id, username, full_name FROM chat_{str(chat_id).replace('-', '')} WHERE id='{user_id}'").fetchone()
+    return cursor.execute(f"SELECT id, username, full_name, is_active FROM chat_{str(chat_id).replace('-', '')} WHERE id='{user_id}'").fetchone()
 
 def updateUsername(chat_id: int, user_id: int, new_username: str)->None:
     """
@@ -133,7 +136,7 @@ def getStatistics(chat_id: int)->list:
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    cursor.execute(f"SELECT id, username, full_name, reputation FROM chat_{str(chat_id).replace('-', '')} ORDER BY reputation DESC")
+    cursor.execute(f"SELECT id, username, full_name, reputation FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1 ORDER BY reputation DESC")
     return cursor.fetchall()
 
 def getUserList(chat_id: int)->list:
@@ -148,7 +151,7 @@ def getUserList(chat_id: int)->list:
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    cursor.execute(f"SELECT id, username, full_name FROM chat_{str(chat_id).replace('-', '')}")
+    cursor.execute(f"SELECT id, username, full_name FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1")
     return cursor.fetchall()
 
 def getCooldown(chat_id: int, user_id: int)->int:
@@ -223,9 +226,10 @@ def updateReputation(chat_id: int, user: str | int, action: str)->None:
         cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE id='{user}'")
     connect.commit()
 
-def deleteUser(chat_id: int, user_id: int)->None:
+def userActivation(chat_id: int, user_id: int)->None:
     """
-    Удаление пользователя из базы данных
+    Изменение состояния "активации" пользователя из базы данных.
+    Значение может быть равно `0` (пользователь был в чате, но вышел) или `1` (пользователь сейчас в чате)
 
     :param chat_id: ID чата
     :type chat_id: `int`
@@ -233,10 +237,13 @@ def deleteUser(chat_id: int, user_id: int)->None:
     :param user_id: ID пользователя
     :type user_id: `int`
 
-    :return: При успехе удаляет запись из БД
+    :return: При успехе меняет значение `is_active` в БД
     :rtype: `None`
     """
     connect = sqlite3.connect("data.db")
     cursor = connect.cursor()
-    cursor.execute(f"DELETE FROM chat_{str(chat_id).replace('-', '')} WHERE id={user_id}")
+    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET 'is_active'= CASE\
+                   WHEN is_active = 1 THEN 0\
+                   ELSE 1 END\
+                   WHERE id={user_id}")
     connect.commit()

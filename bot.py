@@ -22,7 +22,11 @@ def start(message):
     if str(message.chat.id)[0] != "-":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return
+    # добавление бота
+    if message.from_user.is_bot:
+        return
     db.createTable(message.chat.id)
+
     user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
     # добавление нового пользователя
     if not user_in_db:
@@ -33,6 +37,16 @@ def start(message):
                          "Ты можешь посмотреть список моих команд, написав /help",
                          parse_mode='html')
         return
+    # активация пользователя, который уже был в чате
+    elif not user_in_db[3]:
+        db.userActivation(message.chat.id, message.from_user.id)
+        db.setCooldown(message.chat.id, message.from_user.id, time.time())
+        mention = getMention(message)
+        bot.send_message(message.chat.id,
+                        f"С возвращением, {mention}! Рад снова видеть тебя! 😀\n" +
+                        "Если ты забыл мои команды, то можешь посмотреть их, написав /help",
+                        parse_mode='html')
+        return
 
     # обновление username
     if user_in_db[1] != str(message.from_user.username):
@@ -42,7 +56,7 @@ def start(message):
         else:
             bot.send_message(message.chat.id, "Ой-ой! Вижу, ты удалил свой никнейм. Надеюсь, на то есть веская причина. Не переживай, я всё ещё тебя узнаю 😉")
 
-    # обновление full_name. думаю, лучше проверять при каждом обращении к боту для поддержания актуальности данных
+    # обновление full_name. проверяется при каждом обращении к боту для поддержания актуальности данных
     if user_in_db[2] != message.from_user.full_name:
         db.updateFullName(message.chat.id, message.from_user.id, message.from_user.full_name)
 
@@ -116,11 +130,13 @@ def newChatMembers(message):
     """Реакция на присоединение пользователя к чату"""
     start(message)
 
-# TODO: защита репутации от абуза входа-выхода из чата
 @bot.message_handler(content_types=['left_chat_member'])
 def leftChatMember(message):
     """Реакция на выход пользователя из чата"""
-    db.deleteUser(message.chat.id, message.from_user.id)
+    # выход бота
+    if message.from_user.is_bot:
+        return
+    db.userActivation(message.chat.id, message.from_user.id)
     bot.send_message(message.chat.id, f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html')
 
 
