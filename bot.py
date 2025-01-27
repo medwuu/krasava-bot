@@ -13,6 +13,9 @@ import db
 
 
 load_dotenv()
+if not "TOKEN" in os.environ:
+    print("Файл \".env\" не существует или переменная \"TOKEN\" не задана!")
+    exit(1)
 bot = telebot.TeleBot(os.getenv("TOKEN"))
 
 
