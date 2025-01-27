@@ -1,4 +1,11 @@
-![#Krasava bot](https://github.com/user-attachments/assets/6ce39da9-8203-4217-adaa-958e0a8ccc08)
+# ![Krasava bot](https://github.com/user-attachments/assets/6ce39da9-8203-4217-adaa-958e0a8ccc08)
+
+[![Python3.v11+](https://img.shields.io/badge/Python-v3.11+-ffde71)](https://www.python.org/)
+[![Telegram Bot API v8.0](https://img.shields.io/badge/Telegram%20Bot%20API-v8.0-3ab2ee.svg)](https://core.telegram.org/bots/api)
+[![Pet Project](https://img.shields.io/badge/Pet%20Project-🐶-fff)](https://github.com/medwuu)
+[![MIT license](https://img.shields.io/badge/MIT%20license-⚖️-fff)](https://github.com/medwuu/krasava-bot/blob/main/LICENSE)
+[![Issues friendly](https://img.shields.io/badge/Issues%20friendly-🤗-fff)](https://github.com/medwuu/krasava-bot/issues)
+
 ## О боте
 `Krasava bot`, или просто `Красавчик` – это бот, который разнообразит опыт общения в чатах.
 
