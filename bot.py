@@ -264,6 +264,8 @@ def getMention(id: int, username: str, full_name: str)->str:
 
 
 def main():
+    if not os.path.exists("logs/"):
+        os.makedirs("logs/")
     logging.basicConfig(level=logging.INFO,
                         filename=f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log",
                         filemode="a",
