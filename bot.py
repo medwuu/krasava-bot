@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from multipledispatch import dispatch
 
-import db
+from db import Database
 
 
 load_dotenv()
@@ -17,6 +17,7 @@ if not "TOKEN" in os.environ:
     print("Файл \".env\" не существует или переменная \"TOKEN\" не задана!")
     exit(1)
 bot = telebot.TeleBot(os.getenv("TOKEN"))
+db = Database(os.getenv("DATABASE_NAME", "data.db"))
 
 
 @bot.message_handler(commands=['start'])

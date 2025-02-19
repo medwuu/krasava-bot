@@ -1,243 +1,251 @@
 import sqlite3
 
-def createTable(chat_id: int)->None:
-    """
-    Создание таблицы чата
+class Database():
+    def __init__(self, db_path="data.db"):
+        self.db_path = db_path
 
-    :param chat_id: ID чата, для которого надо проверить/создать таблицу
-    :type chat_id: `int`
+    def _connect(self):
+        return sqlite3.connect(self.db_path)
 
-    :return: Создаёт таблицу, если необходимо
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"""CREATE TABLE IF NOT EXISTS 'chat_{str(chat_id).replace('-', '')}'(
-        id INT NOT NULL UNIQUE,
-        username TEXT NOT NULL UNIQUE,
-        full_name TEXT,
-        reputation INT DEFAULT 0,
-        cooldown INT DEFAULT 0,
-        is_active INT DEFAULT 1,
-        PRIMARY KEY("id")
-    );""")
-    connect.commit()
 
-def isUserInDB(chat_id: int, user_id: int)->sqlite3.Cursor | None:
-    """
-    Проверка, есть ли пользователь в БД по его **ID**
+    def createTable(self, chat_id: int)->None:
+        """
+        Создание таблицы чата
 
-    :param chat_id: ID чата, в котором предположительно находится пользователь
-    :type chat_id: `int`
+        :param chat_id: ID чата, для которого надо проверить/создать таблицу
+        :type chat_id: `int`
 
-    :param user_id: ID пользователя, наличие которого надо проверить в `chat_id`
-    :type user_id: `int`
+        :return: Создаёт таблицу, если необходимо
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"""CREATE TABLE IF NOT EXISTS 'chat_{str(chat_id).replace('-', '')}'(
+                id INT NOT NULL UNIQUE,
+                username TEXT NOT NULL UNIQUE,
+                full_name TEXT,
+                reputation INT DEFAULT 0,
+                cooldown INT DEFAULT 0,
+                is_active INT DEFAULT 1,
+                PRIMARY KEY("id")
+            );""")
+            connect.commit()
 
-    :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из:
-    `[id, username, full_name и "был ли пользователь раньше в этом чате"]`. Иначе – None
-    :rtype: `sqlite3.Cursor | None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    return cursor.execute(f"SELECT id, username, full_name, is_active FROM chat_{str(chat_id).replace('-', '')} WHERE id='{user_id}'").fetchone()
+    def isUserInDB(self, chat_id: int, user_id: int)->sqlite3.Cursor | None:
+        """
+        Проверка, есть ли пользователь в БД по его **ID**
 
-def updateUsername(chat_id: int, user_id: int, new_username: str)->None:
-    """
-    Обновление usernam'а пользователя в БД
+        :param chat_id: ID чата, в котором предположительно находится пользователь
+        :type chat_id: `int`
 
-    :param chat_id: ID чата, в котором предположительно находится пользователь
-    :type chat_id: `int`
+        :param user_id: ID пользователя, наличие которого надо проверить в `chat_id`
+        :type user_id: `int`
 
-    :param user_id: ID пользователя
-    :type user_id: `int`
+        :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из:
+        `[id, username, full_name и "был ли пользователь раньше в этом чате"]`. Иначе – None
+        :rtype: `sqlite3.Cursor | None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            return cursor.execute(f"SELECT id, username, full_name, is_active FROM chat_{str(chat_id).replace('-', '')} WHERE id='{user_id}'").fetchone()
 
-    :param new_username: Новый username
-    :type new_username: `str`
+    def updateUsername(self, chat_id: int, user_id: int, new_username: str)->None:
+        """
+        Обновление usernam'а пользователя в БД
 
-    :return: В случае успеха обновляет username
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET username='{new_username}' WHERE id={user_id}")
-    connect.commit()
+        :param chat_id: ID чата, в котором предположительно находится пользователь
+        :type chat_id: `int`
 
-def updateFullName(chat_id: int, user_id: int, new_full_name: str)->None:
-    """
-    Обновление full_nam'а пользователя в БД
+        :param user_id: ID пользователя
+        :type user_id: `int`
 
-    :param chat_id: ID чата, в котором предположительно находится пользователь
-    :type chat_id: `int`
+        :param new_username: Новый username
+        :type new_username: `str`
 
-    :param user_id: ID пользователя
-    :type user_id: `int`
+        :return: В случае успеха обновляет username
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET username='{new_username}' WHERE id={user_id}")
+            connect.commit()
 
-    :param new_full_name: Новый full_name
-    :type new_full_name: `str`
+    def updateFullName(self, chat_id: int, user_id: int, new_full_name: str)->None:
+        """
+        Обновление full_nam'а пользователя в БД
 
-    :return: В случае успеха обновляет full_name
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET full_name='{new_full_name}' WHERE id={user_id}")
-    connect.commit()
+        :param chat_id: ID чата, в котором предположительно находится пользователь
+        :type chat_id: `int`
 
-def isUserInDBByUsername(chat_id: int, username: str)->sqlite3.Cursor:
-    """
-    Проверка, есть ли пользователь в БД по его **username**
+        :param user_id: ID пользователя
+        :type user_id: `int`
 
-    :param chat_id: ID чата, в котором предположительно есть пользователь
-    :type chat_id: `int`
+        :param new_full_name: Новый full_name
+        :type new_full_name: `str`
 
-    :param username: Username пользователя, наличие которого надо проверить в `chat_id`
-    :type username: `str`
+        :return: В случае успеха обновляет full_name
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET full_name='{new_full_name}' WHERE id={user_id}")
+            connect.commit()
 
-    :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из id и username. Иначе – None
-    :rtype: `sqlite3.Cursor | None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    return cursor.execute(f"SELECT id from chat_{str(chat_id).replace('-', '')} WHERE username='{username}' AND is_active=1").fetchone()
+    def isUserInDBByUsername(self, chat_id: int, username: str)->sqlite3.Cursor:
+        """
+        Проверка, есть ли пользователь в БД по его **username**
 
-def addUser(chat_id: int, user_id: int, username: str, full_name: str)->None:
-    """
-    Добавление нового пользователя
+        :param chat_id: ID чата, в котором предположительно есть пользователь
+        :type chat_id: `int`
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :param username: Username пользователя, наличие которого надо проверить в `chat_id`
+        :type username: `str`
 
-    :param user_id: ID пользователя
-    :type user_id: `int`
+        :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из id и username. Иначе – None
+        :rtype: `sqlite3.Cursor | None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            return cursor.execute(f"SELECT id from chat_{str(chat_id).replace('-', '')} WHERE username='{username}' AND is_active=1").fetchone()
 
-    :param username: Username пользователя
-    :type username: `str`
+    def addUser(self, chat_id: int, user_id: int, username: str, full_name: str)->None:
+        """
+        Добавление нового пользователя
 
-    :param full_name: Имя пользователя (не путать с username)
-    :type full_name: `str`
+        :param chat_id: ID чата
+        :type chat_id: `int`
 
-    :return: Добавляет пользователя при успехе
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"INSERT INTO chat_{str(chat_id).replace('-', '')} (id, username, full_name) VALUES('{user_id}', '{username}', '{full_name}')")
-    connect.commit()
+        :param user_id: ID пользователя
+        :type user_id: `int`
 
-def getStatistics(chat_id: int)->list:
-    """
-    Получение репутации всех пользователей чата
+        :param username: Username пользователя
+        :type username: `str`
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :param full_name: Имя пользователя (не путать с username)
+        :type full_name: `str`
 
-    :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[id, username, full_name, reputation]`
-    :rtype: `tuple[list[int, str, str, int]]`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"SELECT id, username, full_name, reputation FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1 ORDER BY reputation DESC")
-    return cursor.fetchall()
+        :return: Добавляет пользователя при успехе
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"INSERT INTO chat_{str(chat_id).replace('-', '')} (id, username, full_name) VALUES('{user_id}', '{username}', '{full_name}')")
+            connect.commit()
 
-def getUserList(chat_id: int)->list:
-    """
-    Получение списка пользователей чата
+    def getStatistics(self, chat_id: int)->list:
+        """
+        Получение репутации всех пользователей чата
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :param chat_id: ID чата
+        :type chat_id: `int`
 
-    :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[username]`
-    :rtype: `list[list[str]]`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"SELECT id, username, full_name FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1")
-    return cursor.fetchall()
+        :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[id, username, full_name, reputation]`
+        :rtype: `tuple[list[int, str, str, int]]`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"SELECT id, username, full_name, reputation FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1 ORDER BY reputation DESC")
+            return cursor.fetchall()
 
-def getCooldown(chat_id: int, user_id: int)->int:
-    """
-    Получение `cooldown` пользователя (timestamp последнего обращения к функции `reputation`)
+    def getUserList(self, chat_id: int)->list:
+        """
+        Получение списка пользователей чата
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :param chat_id: ID чата
+        :type chat_id: `int`
 
-    :param user_id: ID пользователя
-    :type user_id: `int`
+        :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[username]`
+        :rtype: `list[list[str]]`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"SELECT id, username, full_name FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1")
+            return cursor.fetchall()
 
-    :return: Значение `timestamp` последнего использования команды `rep` пользователем в чате
-    :rtype: `int`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"SELECT cooldown from chat_{str(chat_id).replace('-', '')} WHERE id={user_id}")
-    return cursor.fetchone()[0]
+    def getCooldown(self, chat_id: int, user_id: int)->int:
+        """
+        Получение `cooldown` пользователя (timestamp последнего обращения к функции `reputation`)
 
-def setCooldown(chat_id: int, user_id: int, timestamp: int | float)->None:
-    """
-    Установление нового значения `cooldown` для пользователя
+        :param chat_id: ID чата
+        :type chat_id: `int`
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :param user_id: ID пользователя
+        :type user_id: `int`
 
-    :param user: ID пользователя
-    :type user: `int`
+        :return: Значение `timestamp` последнего использования команды `rep` пользователем в чате
+        :rtype: `int`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"SELECT cooldown from chat_{str(chat_id).replace('-', '')} WHERE id={user_id}")
+            return cursor.fetchone()[0]
 
-    :param timestamp: Текущее значение `timestamp`
-    :type timestamp: `int | float`
+    def setCooldown(self, chat_id: int, user_id: int, timestamp: int | float)->None:
+        """
+        Установление нового значения `cooldown` для пользователя
 
-    :return: При успехе обновляет значение `timestamp`
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET cooldown={timestamp} WHERE id='{user_id}'")
-    connect.commit()
+        :param chat_id: ID чата
+        :type chat_id: `int`
 
-def updateReputation(chat_id: int, user: str | int, action: str)->None:
-    """
-    Обновление репутации пользователя
+        :param user: ID пользователя
+        :type user: `int`
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :param timestamp: Текущее значение `timestamp`
+        :type timestamp: `int | float`
 
-    :param user: Username (если задан) или ID пользователя
-    :type user: `str | int`
+        :return: При успехе обновляет значение `timestamp`
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET cooldown={timestamp} WHERE id='{user_id}'")
+            connect.commit()
 
-    :param action: Повышение `+` или понижение `-` репутации
-    :type action: `str` (`+ | -`)
+    def updateReputation(self, chat_id: int, user: str | int, action: str)->None:
+        """
+        Обновление репутации пользователя
 
-    :return: При успехе обновляет репутацию
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
+        :param chat_id: ID чата
+        :type chat_id: `int`
 
-    # идентификация по username
-    if type(user) == str:
-        cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE username='{user}'")
-    # идентификация по id (если username не задан)
-    else:
-        cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE id='{user}'")
-    connect.commit()
+        :param user: Username (если задан) или ID пользователя
+        :type user: `str | int`
 
-def userActivation(chat_id: int, user_id: int)->None:
-    """
-    Изменение состояния "активации" пользователя из базы данных.
-    Значение может быть равно `0` (пользователь был в чате, но вышел) или `1` (пользователь сейчас в чате)
+        :param action: Повышение `+` или понижение `-` репутации
+        :type action: `str` (`+ | -`)
 
-    :param chat_id: ID чата
-    :type chat_id: `int`
+        :return: При успехе обновляет репутацию
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
 
-    :param user_id: ID пользователя
-    :type user_id: `int`
+            # идентификация по username
+            if type(user) == str:
+                cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE username='{user}'")
+            # идентификация по id (если username не задан)
+            else:
+                cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE id='{user}'")
+            connect.commit()
 
-    :return: При успехе меняет значение `is_active` в БД
-    :rtype: `None`
-    """
-    connect = sqlite3.connect("data.db")
-    cursor = connect.cursor()
-    cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET 'is_active'= CASE\
-                   WHEN is_active = 1 THEN 0\
-                   ELSE 1 END\
-                   WHERE id={user_id}")
-    connect.commit()
+    def userActivation(self, chat_id: int, user_id: int)->None:
+        """
+        Изменение состояния "активации" пользователя из базы данных.
+        Значение может быть равно `0` (пользователь был в чате, но вышел) или `1` (пользователь сейчас в чате)
+
+        :param chat_id: ID чата
+        :type chat_id: `int`
+
+        :param user_id: ID пользователя
+        :type user_id: `int`
+
+        :return: При успехе меняет значение `is_active` в БД
+        :rtype: `None`
+        """
+        with self._connect() as connect:
+            cursor = connect.cursor()
+            cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET 'is_active'= CASE\
+                        WHEN is_active = 1 THEN 0\
+                        ELSE 1 END\
+                        WHERE id={user_id}")
+            connect.commit()
