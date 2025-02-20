@@ -30,12 +30,15 @@ def start(message):
     # добавление бота
     if message.from_user.is_bot:
         return
-    db.createTable(message.chat.id)
 
-    user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
+    with Database() as db:
+        db.createTable(message.chat.id)
+        user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
+
     # добавление нового пользователя
     if not user_in_db:
-        db.addUser(message.chat.id, message.from_user.id, message.from_user.username, message.from_user.full_name)
+        with Database() as db:
+            db.addUser(message.chat.id, message.from_user.id, message.from_user.username, message.from_user.full_name)
         mention = getMention(message)
         bot.send_message(message.chat.id,
                          f"Привет, {mention}. Рад познакомиться с тобой! 😀\n" +
@@ -44,8 +47,9 @@ def start(message):
         return
     # активация пользователя, который уже был в чате
     elif not user_in_db[3]:
-        db.userActivation(message.chat.id, message.from_user.id)
-        db.setCooldown(message.chat.id, message.from_user.id, time.time())
+        with Database() as db:
+            db.userActivation(message.chat.id, message.from_user.id)
+            db.setCooldown(message.chat.id, message.from_user.id, time.time())
         mention = getMention(message)
         bot.send_message(message.chat.id,
                         f"С возвращением, {mention}! Рад снова видеть тебя! 😀\n" +
@@ -55,7 +59,8 @@ def start(message):
 
     # обновление username
     if user_in_db[1] != str(message.from_user.username):
-        db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
+        with Database() as db:
+            db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
         if message.from_user.username:
             bot.send_message(message.chat.id, "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉")
         else:
@@ -63,7 +68,8 @@ def start(message):
 
     # обновление full_name. проверяется при каждом обращении к боту для поддержания актуальности данных
     if user_in_db[2] != message.from_user.full_name:
-        db.updateFullName(message.chat.id, message.from_user.id, message.from_user.full_name)
+        with Database() as db:
+            db.updateFullName(message.chat.id, message.from_user.id, message.from_user.full_name)
 
     else:
         # повторное прописывание "/start"
@@ -87,7 +93,8 @@ def help(message):
 def statistics(message):
     """Статистика по репутации всех пользователей чата"""
     start(message)
-    records = db.getStatistics(message.chat.id)
+    with Database() as db:
+        records = db.getStatistics(message.chat.id)
     user_stat = "\n".join([getMention(*user[:-1]) + "   ---->   " + str(user[3]) for user in records])
     bot.send_message(message.chat.id, f"Статистика репутации всех пользователей:\n{user_stat}", parse_mode='html')
 
@@ -95,7 +102,8 @@ def statistics(message):
 def ping_all(message):
     """Пинг всех пользователей"""
     start(message)
-    members = db.getUserList(message.chat.id)
+    with Database() as db:
+        members = db.getUserList(message.chat.id)
     bot.delete_message(message.chat.id, message.message_id)
     members_list = ", ".join([getMention(*x) for x in members if x[0] != message.from_user.id])
     bot.send_message(message.chat.id, f"{getMention(message)} упоминает всех\n<span class=\"tg-spoiler\">({members_list})</span>", parse_mode='html')
@@ -141,7 +149,8 @@ def leftChatMember(message):
     # выход бота
     if message.from_user.is_bot:
         return
-    db.userActivation(message.chat.id, message.from_user.id)
+    with Database() as db:
+        db.userActivation(message.chat.id, message.from_user.id)
     bot.send_message(message.chat.id, f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html')
 
 
@@ -195,12 +204,14 @@ def reputation(message):
         return
 
     # есть ли пользователь в БД
-    if not db.isUserInDBByUsername(message.chat.id, to_whom) and not db.isUserInDB(message.chat.id, to_whom):
-        bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
-        return
+    with Database() as db:
+        if not db.isUserInDBByUsername(message.chat.id, to_whom) and not db.isUserInDB(message.chat.id, to_whom):
+            bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
+            return
 
     # проверка на кулдаун
-    cooldown = db.getCooldown(message.chat.id, message.from_user.id)
+    with Database() as db:
+        cooldown = db.getCooldown(message.chat.id, message.from_user.id)
     if round(time.time()) - cooldown < 3600:
         cooldown_remain = int(((time.time() - cooldown - 3600) / 60) // -1)
         bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
@@ -211,8 +222,9 @@ def reputation(message):
         bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
     # репутация другому (так и надо)
     else:
-        db.updateReputation(message.chat.id, to_whom, message.text[0])
-        db.setCooldown(message.chat.id, message.from_user.id, time.time())
+        with Database() as db:
+            db.updateReputation(message.chat.id, to_whom, message.text[0])
+            db.setCooldown(message.chat.id, message.from_user.id, time.time())
         bot.delete_message(message.chat.id, message.message_id)
         if len(message.text.split(' ')) > 2:
             reputation_reason = message.html_text.split(' ', 2)[2]
@@ -265,7 +277,7 @@ def getMention(id: int, username: str, full_name: str)->str:
     return mention
 
 
-def setup_logger() -> logging.Logger:
+def setup_logger()->logging.Logger:
     if not os.path.exists("logs/"):
         os.makedirs("logs/")
 
