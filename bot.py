@@ -3,6 +3,7 @@ import os
 import time
 import random
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import telebot
 import requests
 from dotenv import load_dotenv
@@ -264,14 +265,32 @@ def getMention(id: int, username: str, full_name: str)->str:
     return mention
 
 
-def main():
+def setup_logger() -> logging.Logger:
     if not os.path.exists("logs/"):
         os.makedirs("logs/")
-    logging.basicConfig(level=logging.INFO,
-                        filename=f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log",
-                        filemode="a",
-                        format="%(asctime)s %(levelname)s %(message)s",
-                        force=True)
+
+    logger = logging.getLogger("BotLogger")
+    logger.setLevel(logging.INFO)
+
+    log_format = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    log_file = f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log"
+
+    handler = TimedRotatingFileHandler(
+        filename=log_file,
+        when="midnight",
+        interval=1,
+        backupCount=30
+    )
+    handler.setFormatter(log_format)
+
+    if logger.handlers:
+        logger.handlers.clear()
+    logger.addHandler(handler)
+    return logger
+
+
+def main():
+    logging = setup_logger()
     try:
         logging.info("Bot start")
         bot.polling(True)
