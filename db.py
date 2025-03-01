@@ -16,9 +16,6 @@ class Database():
         """
         Создание таблицы чата
 
-        :param chat_id: ID чата, для которого надо проверить/создать таблицу
-        :type chat_id: `int`
-
         :return: Создаёт таблицу, если необходимо
         :rtype: `None`
         """
@@ -36,7 +33,7 @@ class Database():
 
         self.connect.commit()
 
-    def isUserInDB(self, chat_id: int, user_id: int)->sqlite3.Cursor | None:
+    def isUserInDB(self, chat_id: int, user_id: int)->tuple | None:
         """
         Проверка, есть ли пользователь в БД по его **ID**
 
@@ -46,9 +43,9 @@ class Database():
         :param user_id: ID пользователя, наличие которого надо проверить в `chat_id`
         :type user_id: `int`
 
-        :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из:
-        `[id, username, full_name и "был ли пользователь раньше в этом чате"]`. Иначе – None
-        :rtype: `sqlite3.Cursor | None`
+        :return: Если пользователь есть, кортеж, состоящий из:
+        `(user_id, username, full_name и "есть ли пользователь в чате")`. Иначе – `None`
+        :rtype: `tuple | None`
         """
         response = self.cursor.execute("SELECT user_id, username, full_name, is_active\
                                        FROM users\
@@ -59,9 +56,6 @@ class Database():
     def updateUsername(self, user_id: int, new_username: str)->None:
         """
         Обновление usernam'а пользователя в БД
-
-        :param chat_id: ID чата, в котором предположительно находится пользователь
-        :type chat_id: `int`
 
         :param user_id: ID пользователя
         :type user_id: `int`
@@ -82,9 +76,6 @@ class Database():
         """
         Обновление full_nam'а пользователя в БД
 
-        :param chat_id: ID чата, в котором предположительно находится пользователь
-        :type chat_id: `int`
-
         :param user_id: ID пользователя
         :type user_id: `int`
 
@@ -100,7 +91,7 @@ class Database():
                             (new_full_name, user_id))
         self.connect.commit()
 
-    def isUserInDBByUsername(self, chat_id: int, username: str)->sqlite3.Cursor:
+    def isUserInDBByUsername(self, chat_id: int, username: str)->tuple | None:
         """
         Проверка, есть ли пользователь в БД по его **username**
 
@@ -110,8 +101,8 @@ class Database():
         :param username: Username пользователя, наличие которого надо проверить в `chat_id`
         :type username: `str`
 
-        :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из id и username. Иначе – None
-        :rtype: `sqlite3.Cursor | None`
+        :return: Если пользователь есть, кортеж, состоящий из `(user_id, username)`. Иначе – `None`
+        :rtype: `tuple | None`
         """
         response = self.cursor.execute("SELECT user_id\
                                        FROM users\
@@ -150,8 +141,9 @@ class Database():
         :param chat_id: ID чата
         :type chat_id: `int`
 
-        :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[id, username, full_name, reputation]`
-        :rtype: `tuple[list[int, str, str, int]]`
+        :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде
+        `(user_id, username, full_name, reputation)`
+        :rtype: `[(int, str, str, int), ...]`
         """
         response = self.cursor.execute("SELECT user_id, username, full_name, reputation\
                                        FROM users\
@@ -167,8 +159,8 @@ class Database():
         :param chat_id: ID чата
         :type chat_id: `int`
 
-        :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[username]`
-        :rtype: `list[list[str]]`
+        :return: Массив пользователей
+        :rtype: `[(int, str, str), ...]`
         """
         response = self.cursor.execute("SELECT user_id, username, full_name\
                                        FROM users\
@@ -176,9 +168,9 @@ class Database():
                                        (chat_id,))
         return response.fetchall()
 
-    def getCooldown(self, chat_id: int, user_id: int)->int:
+    def getCooldown(self, chat_id: int, user_id: int)->float:
         """
-        Получение `cooldown` пользователя (timestamp последнего обращения к функции `reputation`)
+        Получение `cooldown` пользователя (timestamp последнего обращения к `bot.reputation()`)
 
         :param chat_id: ID чата
         :type chat_id: `int`
@@ -187,7 +179,7 @@ class Database():
         :type user_id: `int`
 
         :return: Значение `timestamp` последнего использования команды `rep` пользователем в чате
-        :rtype: `int`
+        :rtype: `float`
         """
         response = self.cursor.execute("SELECT cooldown\
                                        FROM users\
@@ -195,7 +187,7 @@ class Database():
                                        (chat_id, user_id))
         return response.fetchone()[0]
 
-    def setCooldown(self, chat_id: int, user_id: int, timestamp: int | float)->None:
+    def setCooldown(self, chat_id: int, user_id: int, timestamp: float)->None:
         """
         Установление нового значения `cooldown` для пользователя
 
@@ -206,7 +198,7 @@ class Database():
         :type user: `int`
 
         :param timestamp: Текущее значение `timestamp`
-        :type timestamp: `int | float`
+        :type timestamp: `float`
 
         :return: При успехе обновляет значение `timestamp`
         :rtype: `None`
