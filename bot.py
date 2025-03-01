@@ -18,7 +18,6 @@ if not "TOKEN" in os.environ:
     print("Файл \".env\" не существует или переменная \"TOKEN\" не задана!")
     exit(1)
 bot = telebot.TeleBot(os.getenv("TOKEN"))
-db = Database(os.getenv("DATABASE_NAME", "data.db"))
 
 
 @bot.message_handler(commands=['start'])
@@ -32,7 +31,6 @@ def start(message):
         return
 
     with Database() as db:
-        db.createTable(message.chat.id)
         user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
 
     # добавление нового пользователя
@@ -306,6 +304,9 @@ def setupLogger()->logging.Logger:
 
 def main():
     logging = setupLogger()
+    with Database() as db:
+        db.createTable()
+
     try:
         logging.info("Bot start")
         bot.polling(True)

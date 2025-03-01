@@ -12,7 +12,7 @@ class Database():
         self.cursor.close()
 
 
-    def createTable(self, chat_id: int)->None:
+    def createTable(self)->None:
         """
         Создание таблицы чата
 
@@ -22,15 +22,18 @@ class Database():
         :return: Создаёт таблицу, если необходимо
         :rtype: `None`
         """
-        self.cursor.execute(f"""CREATE TABLE IF NOT EXISTS 'chat_{str(chat_id).replace('-', '')}'(
-            id INT NOT NULL UNIQUE,
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS users(
+            id INT NOT NULL,
+            user_id INT NOT NULL,
+            chat_id INT NOT NULL,
             username TEXT NOT NULL UNIQUE,
             full_name TEXT,
             reputation INT DEFAULT 0,
             cooldown INT DEFAULT 0,
             is_active INT DEFAULT 1,
-            PRIMARY KEY("id")
+            PRIMARY KEY("id" AUTOINCREMENT)
         );""")
+
         self.connect.commit()
 
     def isUserInDB(self, chat_id: int, user_id: int)->sqlite3.Cursor | None:
@@ -47,9 +50,13 @@ class Database():
         `[id, username, full_name и "был ли пользователь раньше в этом чате"]`. Иначе – None
         :rtype: `sqlite3.Cursor | None`
         """
-        return self.cursor.execute(f"SELECT id, username, full_name, is_active FROM chat_{str(chat_id).replace('-', '')} WHERE id='{user_id}'").fetchone()
+        response = self.cursor.execute("SELECT user_id, username, full_name, is_active\
+                                       FROM users\
+                                       WHERE chat_id=? AND user_id=?",
+                                       (chat_id, user_id))
+        return response.fetchone()
 
-    def updateUsername(self, chat_id: int, user_id: int, new_username: str)->None:
+    def updateUsername(self, user_id: int, new_username: str)->None:
         """
         Обновление usernam'а пользователя в БД
 
@@ -65,10 +72,13 @@ class Database():
         :return: В случае успеха обновляет username
         :rtype: `None`
         """
-        self.cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET username='{new_username}' WHERE id={user_id}")
+        self.cursor.execute("UPDATE users\
+                            SET username=?\
+                            WHERE user_id=?",
+                            (new_username, user_id))
         self.connect.commit()
 
-    def updateFullName(self, chat_id: int, user_id: int, new_full_name: str)->None:
+    def updateFullName(self, user_id: int, new_full_name: str)->None:
         """
         Обновление full_nam'а пользователя в БД
 
@@ -84,7 +94,10 @@ class Database():
         :return: В случае успеха обновляет full_name
         :rtype: `None`
         """
-        self.cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET full_name='{new_full_name}' WHERE id={user_id}")
+        self.cursor.execute("UPDATE users\
+                            SET full_name=?\
+                            WHERE user_id=?",
+                            (new_full_name, user_id))
         self.connect.commit()
 
     def isUserInDBByUsername(self, chat_id: int, username: str)->sqlite3.Cursor:
@@ -100,7 +113,11 @@ class Database():
         :return: Если пользователь есть, массив `sqlite3.Cursor`, состоящий из id и username. Иначе – None
         :rtype: `sqlite3.Cursor | None`
         """
-        return self.cursor.execute(f"SELECT id from chat_{str(chat_id).replace('-', '')} WHERE username='{username}' AND is_active=1").fetchone()
+        response = self.cursor.execute("SELECT user_id\
+                                       FROM users\
+                                       WHERE chat_id=? AND username=? AND is_active=1",
+                                       (chat_id, username))
+        return response.fetchone()
 
     def addUser(self, chat_id: int, user_id: int, username: str, full_name: str)->None:
         """
@@ -121,7 +138,9 @@ class Database():
         :return: Добавляет пользователя при успехе
         :rtype: `None`
         """
-        self.cursor.execute(f"INSERT INTO chat_{str(chat_id).replace('-', '')} (id, username, full_name) VALUES('{user_id}', '{username}', '{full_name}')")
+        self.cursor.execute("INSERT INTO users (chat_id, user_id, username, full_name)\
+                            VALUES(?, ?, ?, ?)",
+                            (chat_id, user_id, username, full_name))
         self.connect.commit()
 
     def getStatistics(self, chat_id: int)->list:
@@ -134,8 +153,12 @@ class Database():
         :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[id, username, full_name, reputation]`
         :rtype: `tuple[list[int, str, str, int]]`
         """
-        self.cursor.execute(f"SELECT id, username, full_name, reputation FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1 ORDER BY reputation DESC")
-        return self.cursor.fetchall()
+        response = self.cursor.execute("SELECT user_id, username, full_name, reputation\
+                                       FROM users\
+                                       WHERE chat_id=? AND is_active=1\
+                                       ORDER BY reputation DESC",
+                                       (chat_id,))
+        return response.fetchall()
 
     def getUserList(self, chat_id: int)->list:
         """
@@ -147,8 +170,11 @@ class Database():
         :return: Массив пользователей. В каждом пользователе содержится информация о нём в виде `[username]`
         :rtype: `list[list[str]]`
         """
-        self.cursor.execute(f"SELECT id, username, full_name FROM chat_{str(chat_id).replace('-', '')} WHERE is_active=1")
-        return self.cursor.fetchall()
+        response = self.cursor.execute("SELECT user_id, username, full_name\
+                                       FROM users\
+                                       WHERE chat_id=? AND is_active=1",
+                                       (chat_id,))
+        return response.fetchall()
 
     def getCooldown(self, chat_id: int, user_id: int)->int:
         """
@@ -163,8 +189,11 @@ class Database():
         :return: Значение `timestamp` последнего использования команды `rep` пользователем в чате
         :rtype: `int`
         """
-        self.cursor.execute(f"SELECT cooldown from chat_{str(chat_id).replace('-', '')} WHERE id={user_id}")
-        return self.cursor.fetchone()[0]
+        response = self.cursor.execute("SELECT cooldown\
+                                       FROM users\
+                                       WHERE chat_id=? AND user_id=?",
+                                       (chat_id, user_id))
+        return response.fetchone()[0]
 
     def setCooldown(self, chat_id: int, user_id: int, timestamp: int | float)->None:
         """
@@ -182,7 +211,10 @@ class Database():
         :return: При успехе обновляет значение `timestamp`
         :rtype: `None`
         """
-        self.cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET cooldown={timestamp} WHERE id='{user_id}'")
+        self.cursor.execute("UPDATE users\
+                            SET cooldown=?\
+                            WHERE chat_id=? AND user_id=?",
+                            (timestamp, chat_id, user_id))
         self.connect.commit()
 
     def updateReputation(self, chat_id: int, user: str | int, action: str)->None:
@@ -201,12 +233,22 @@ class Database():
         :return: При успехе обновляет репутацию
         :rtype: `None`
         """
+        if not action in ["+", "-"]:
+            raise ValueError
+        action = 1 if action == "+" else -1
+
         # идентификация по username
-        if type(user) == str:
-            self.cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE username='{user}'")
-        # идентификация по id (если username не задан)
+        if isinstance(user, str):
+            self.cursor.execute("UPDATE users\
+                                SET reputation=reputation+?\
+                                WHERE chat_id=? AND username=?",
+                                (action, chat_id, user))
+        # идентификация по user_id (если username не задан)
         else:
-            self.cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET reputation=reputation{action}1 WHERE id='{user}'")
+            self.cursor.execute("UPDATE users\
+                                SET reputation=reputation+?\
+                                WHERE chat_id=? AND user_id=?",
+                                (action, chat_id, user))
         self.connect.commit()
 
     def userActivation(self, chat_id: int, user_id: int)->None:
@@ -223,8 +265,9 @@ class Database():
         :return: При успехе меняет значение `is_active` в БД
         :rtype: `None`
         """
-        self.cursor.execute(f"UPDATE chat_{str(chat_id).replace('-', '')} SET 'is_active'= CASE\
-                    WHEN is_active = 1 THEN 0\
-                    ELSE 1 END\
-                    WHERE id={user_id}")
+        self.cursor.execute("UPDATE users SET is_active=CASE\
+                            WHEN is_active=1 THEN 0\
+                            ELSE 1 END\
+                            WHERE chat_id=? AND user_id=?",
+                            (chat_id, user_id))
         self.connect.commit()
