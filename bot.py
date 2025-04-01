@@ -24,7 +24,7 @@ db = Database(os.getenv("DATABASE_NAME", "data.db"))
 @bot.message_handler(commands=['start'])
 def start(message):
     """Регистрация пользователя в БД"""
-    if str(message.chat.id)[0] != "-":
+    if message.chat.type != "supergroup":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return
     # добавление бота
@@ -43,7 +43,7 @@ def start(message):
         bot.send_message(message.chat.id,
                          f"Привет, {mention}. Рад познакомиться с тобой! 😀\n" +
                          "Ты можешь посмотреть список моих команд, написав /help",
-                         parse_mode='html')
+                         parse_mode='html', disable_notification=True)
         return
     # активация пользователя, который уже был в чате
     elif not user_in_db[3]:
@@ -54,7 +54,7 @@ def start(message):
         bot.send_message(message.chat.id,
                         f"С возвращением, {mention}! Рад снова видеть тебя! 😀\n" +
                         "Если ты забыл мои команды, то можешь посмотреть их, написав /help",
-                        parse_mode='html')
+                        parse_mode='html', disable_notification=True)
         return
 
     # обновление username
@@ -62,9 +62,13 @@ def start(message):
         with Database() as db:
             db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
         if message.from_user.username:
-            bot.send_message(message.chat.id, "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉")
+            bot.send_message(message.chat.id,
+                             "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉",
+                             disable_notification=True)
         else:
-            bot.send_message(message.chat.id, "Ой-ой! Вижу, ты удалил свой никнейм. Надеюсь, на то есть веская причина. Не переживай, я всё ещё тебя узнаю 😉")
+            bot.send_message(message.chat.id,
+                             "Ой-ой! Вижу, ты удалил свой никнейм. Надеюсь, на то есть веская причина. Не переживай, я всё ещё тебя узнаю 😉",
+                             disable_notification=True)
 
     # обновление full_name. проверяется при каждом обращении к боту для поддержания актуальности данных
     if user_in_db[2] != message.from_user.full_name:
@@ -74,7 +78,7 @@ def start(message):
     else:
         # повторное прописывание "/start"
         if message.text == "/start":
-            bot.send_message(message.chat.id, "Не нужно, мы уже знакомы 😊")
+            bot.send_message(message.chat.id, "Не нужно, мы уже знакомы 😊", disable_notification=True)
 
 @bot.message_handler(commands=['help'])
 def help(message):
@@ -87,7 +91,7 @@ def help(message):
                     "-rep @кому причина – понизить репутацию пользователю. Синтаксис такой же;\n" +
                     "/statistics – топ пользователей по репутации в чате;\n" +
                     "/help – помощь по командам.",
-                    parse_mode='html')
+                    parse_mode='html', disable_notification=True)
 
 @bot.message_handler(commands=['statistics'])
 def statistics(message):
@@ -121,7 +125,7 @@ def coinflip(message):
         answer = int(soup.find("span").text.strip())
     # на случай ошибки с random.org
     else:
-        bot.send_message(message.chat.id, "Произошла ошибка при обращении к random.org.\nБудет использован встроенный рандомайзер")
+        bot.send_message(message.chat.id, "Произошла ошибка при обращении к random.org.\nБудет использован встроенный рандомайзер", disable_notification=True)
         answer = random.randint(0, 1)
     bot_message = bot.send_message(message.chat.id, f"{getMention(message)} подбрасывает монетку и выпадает...", parse_mode='html')
     time.sleep(2)
@@ -151,7 +155,9 @@ def leftChatMember(message):
         return
     with Database() as db:
         db.userActivation(message.chat.id, message.from_user.id)
-    bot.send_message(message.chat.id, f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html')
+    bot.send_message(message.chat.id,
+                     f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html',
+                     disable_notification=True)
 
 
 def anyText(message):
@@ -192,21 +198,29 @@ def reputation(message):
         else:
             raise IndexError
     except (IndexError, TypeError):
-        bot.send_message(message.chat.id, "Ошибка при вводе команды. Проверьте синтаксис, написав команду /help")
+        bot.send_message(message.chat.id,
+                         "Ошибка при вводе команды. Проверьте синтаксис, написав команду /help",
+                         disable_notification=True)
         return
 
     # репутация бота
     if to_whom == bot.get_me().username:
         if message.text[0] == "-":
-            bot.send_message(message.chat.id, f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!")
+            bot.send_message(message.chat.id,
+                             f"Вы решили посягнуть на святое! Я конфисковать у вас {'кошка жена и ' if random.randint(0, 1) == 1 else ''}{random.randint(1, 10)} миска рис!",
+                             disable_notification=True)
         else:
-            bot.send_message(message.chat.id, "Ой спасиба\n   🥺\n👉🏻 👈🏻")
+            bot.send_message(message.chat.id,
+                             "Ой спасиба\n   🥺\n👉🏻 👈🏻",
+                             disable_notification=True)
         return
 
     # есть ли пользователь в БД
     with Database() as db:
         if not db.isUserInDBByUsername(message.chat.id, to_whom) and not db.isUserInDB(message.chat.id, to_whom):
-            bot.send_message(message.chat.id, "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то")
+            bot.send_message(message.chat.id,
+                             "Такого пользователя нет в чате или я ещё не знаком с ним. Попросите его написать тут что-то",
+                             disable_notification=True)
             return
 
     # проверка на кулдаун
@@ -214,12 +228,16 @@ def reputation(message):
         cooldown = db.getCooldown(message.chat.id, message.from_user.id)
     if round(time.time()) - cooldown < 3600:
         cooldown_remain = int(((time.time() - cooldown - 3600) / 60) // -1)
-        bot.send_message(message.chat.id, f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}")
+        bot.send_message(message.chat.id,
+                         f"Изменять репутацию можно только раз в час! Попробуй снова через {cooldown_remain} минут{'ы' if cooldown_remain in [2, 3, 4] else 'у' if cooldown == 1 else ''}",
+                         disable_notification=True)
         return
 
     # репутация себе
     if message.from_user.username == to_whom or message.from_user.id == to_whom:
-        bot.send_message(message.chat.id, f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!")
+        bot.send_message(message.chat.id,
+                         f"Нельзя {'повыcить' if message.text[0] == '+' else 'понизить'} репутацию самому себе!",
+                         disable_notification=True)
     # репутация другому (так и надо)
     else:
         with Database() as db:
@@ -229,7 +247,9 @@ def reputation(message):
         if len(message.text.split(' ')) > 2:
             reputation_reason = message.html_text.split(' ', 2)[2]
             if len(reputation_reason) > 100:
-                bot.send_message(message.chat.id, "Причина слишком длинная! Сообщение будет обрезано до 100 символов")
+                bot.send_message(message.chat.id,
+                                 "Причина слишком длинная! Сообщение будет обрезано до 100 символов",
+                                 disable_notification=True)
                 reputation_reason = message.text.split(' ', 2)[2][:100] + "..."
             bot.send_message(message.chat.id, f"{getMention(message)} {'повышает' if message.text[0] == '+' else 'понижает'} репутацию {to_whom_mention}.\nПричина: {reputation_reason}.", parse_mode='html')
         else:
