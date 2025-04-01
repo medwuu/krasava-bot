@@ -2,11 +2,10 @@ import datetime
 import os
 import time
 import random
-import logging
-from logging.handlers import TimedRotatingFileHandler
 import telebot
 import requests
 from dotenv import load_dotenv
+from loguru import logger
 from bs4 import BeautifulSoup
 from multipledispatch import dispatch
 
@@ -179,7 +178,7 @@ def anyText(message):
 
         r = requests.post(url, json=data)
         if not r.ok:
-            logging.warning("Failed while sending message reaction!")
+            logger.error("Failed while sending message reaction!")
 
 def reputation(message):
     """Добавление и отнимание репутации"""
@@ -297,42 +296,18 @@ def getMention(id: int, username: str, full_name: str)->str:
     return mention
 
 
-def setupLogger()->logging.Logger:
-    """
-    Настройка логгера (`logging.Logger`)
-
-    :return: экземпляр логгера
-    :rtype: logging.Logger
-    """
-    if not os.path.exists("logs/"):
-        os.makedirs("logs/")
-
-    logger = logging.getLogger("BotLogger")
-    logger.setLevel(logging.INFO)
-    log_format = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    log_file = f"logs/logging_{datetime.datetime.today().strftime('%Y-%m-%d')}.log"
-    handler = TimedRotatingFileHandler(
-        filename=log_file,
-        when="midnight",
-        interval=1,
-        backupCount=30)
-    handler.setFormatter(log_format)
-
-    if logger.handlers:
-        logger.handlers.clear()
-    logger.addHandler(handler)
-    return logger
-
-
 def main():
-    logging = setupLogger()
+    logger.remove()
+    logger.add("logs/logging_{time:YYYY-MM-DD}.log",
+               format="{time:HH:mm:ss:SSS} {level} {message}",
+               level="INFO", rotation="00:00", compression="zip")
     try:
-        logging.info("Bot start")
+        logger.success("Bot start")
         bot.polling(True)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-        logging.warning("Requests lib error. Restarting bot...\n\n")
+        logger.warning("Requests lib error. Restarting bot...\n\n")
     except Exception as error:
-        logging.critical(f"Unexpected error:\n{error}", exc_info=True)
+        logger.critical("Unexpected error:\n{message}")
 
 while __name__ == "__main__":
     main()
