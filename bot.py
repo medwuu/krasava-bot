@@ -1,4 +1,3 @@
-import datetime
 import os
 import time
 import random
@@ -17,7 +16,6 @@ if not "TOKEN" in os.environ:
     print("Файл \".env\" не существует или переменная \"TOKEN\" не задана!")
     exit(1)
 bot = telebot.TeleBot(os.getenv("TOKEN"))
-db = Database(os.getenv("DATABASE_NAME", "data.db"))
 
 
 @bot.message_handler(commands=['start'])
@@ -31,7 +29,6 @@ def start(message):
         return
 
     with Database() as db:
-        db.createTable(message.chat.id)
         user_in_db = db.isUserInDB(message.chat.id, message.from_user.id)
 
     # добавление нового пользователя
@@ -296,18 +293,19 @@ def getMention(id: int, username: str, full_name: str)->str:
     return mention
 
 
+@logger.catch
 def main():
     logger.remove()
     logger.add("logs/logging_{time:YYYY-MM-DD}.log",
                format="{time:HH:mm:ss:SSS} {level} {message}",
                level="INFO", rotation="00:00", compression="zip")
     try:
+        with Database() as db:
+            db.createTable()
         logger.success("Bot start")
         bot.polling(True)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
         logger.warning("Requests lib error. Restarting bot...\n\n")
-    except Exception as error:
-        logger.critical("Unexpected error:\n{message}")
 
 while __name__ == "__main__":
     main()
