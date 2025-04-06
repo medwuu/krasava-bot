@@ -105,7 +105,15 @@ def ping_all(message):
     start(message)
     with Database() as db:
         members = db.getUserList(message.chat.id)
-    bot.delete_message(message.chat.id, message.message_id)
+
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except telebot.apihelper.ApiTelegramException as e:
+        if e.error_code == 400 and "message can't be deleted" in e.description:
+            bot.send_message(message.chat.id, "Недостаточно прав для удаления сообщения. Проверьте разрешения бота!", disable_notification=True)
+        else:
+            logger.exception(e)
+
     members_list = ", ".join([getMention(*x) for x in members if x[0] != message.from_user.id])
     bot.send_message(message.chat.id, f"{getMention(message)} упоминает всех\n<span class=\"tg-spoiler\">({members_list})</span>", parse_mode='html')
 
@@ -113,7 +121,14 @@ def ping_all(message):
 def coinflip(message):
     """Подбросить монетку (на базе [random.org](https://random.org))"""
     start(message)
-    bot.delete_message(message.chat.id, message.message_id)
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except telebot.apihelper.ApiTelegramException as e:
+        if e.error_code == 400 and "message can't be deleted" in e.description:
+            bot.send_message(message.chat.id, "Недостаточно прав для удаления сообщения. Проверьте разрешения бота!", disable_notification=True)
+        else:
+            logger.exception(e)
+
     min_num = 0
     max_num = 1
     r = requests.get(f"https://www.random.org/integers/?num=1&min={min_num}&max={max_num}&col=1&base=10&format=plain&rnd=new&cl=w")
@@ -232,7 +247,15 @@ def reputation(message):
         with Database() as db:
             db.updateReputation(message.chat.id, to_whom, message.text[0])
             db.setCooldown(message.chat.id, message.from_user.id, time.time())
-        bot.delete_message(message.chat.id, message.message_id)
+
+        try:
+            bot.delete_message(message.chat.id, message.message_id)
+        except telebot.apihelper.ApiTelegramException as e:
+            if e.error_code == 400 and "message can't be deleted" in e.description:
+                bot.send_message(message.chat.id, "Недостаточно прав для удаления сообщения. Проверьте разрешения бота!", disable_notification=True)
+            else:
+                logger.exception(e)
+
         if len(message.text.split(' ')) > 2:
             reputation_reason = message.html_text.split(' ', 2)[2]
             if len(reputation_reason) > 100:
