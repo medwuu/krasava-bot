@@ -6,6 +6,7 @@ import requests
 from dotenv import load_dotenv
 from loguru import logger
 from bs4 import BeautifulSoup
+from telebot.types import ReactionTypeEmoji
 from multipledispatch import dispatch
 
 from db import Database
@@ -155,27 +156,18 @@ def leftChatMember(message):
                      f"Мне очень жаль, что ты ушёл, <a href=\"tg://user?id={message.from_user.id}\">{message.from_user.full_name}</a> 😢", parse_mode='html',
                      disable_notification=True)
 
+@bot.message_reaction_handler()
+def supportReaction(message):
+    """Поддержка реакции на сообщения"""
+    bot.set_message_reaction(message.chat.id, message.message_id, message.new_reaction)
+
 
 def anyText(message):
     """Функция, которая применяется для каждого сообщения"""
     if random.randint(0, 10)==0:
         reactions = ["👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊", "🤡", "🥱", "🥴", "😍", "🐳", "❤‍🔥", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍", "🤗", "🫡", "🎅", "🎄", "☃", "💅", "🤪", "🗿", "🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂", "🤷", "🤷‍♀", "😡"]
-        url = f'https://api.telegram.org/bot{os.getenv("TOKEN")}/setMessageReaction'
-        data = {
-            'chat_id': message.chat.id,
-            'message_id': message.message_id,
-            'reaction': [
-                {
-                    'type': 'emoji',
-                    'emoji': random.choice(reactions)
-                }
-            ],
-            'is_big': False
-        }
+        bot.set_message_reaction(message.chat.id, message.message_id, [ReactionTypeEmoji(random.choice(reactions))], is_big=False)
 
-        r = requests.post(url, json=data)
-        if not r.ok:
-            logger.error("Failed while sending message reaction!")
 
 def reputation(message):
     """Добавление и отнимание репутации"""
@@ -303,7 +295,7 @@ def main():
         with Database() as db:
             db.createTable()
         logger.success("Bot start")
-        bot.polling(True)
+        bot.polling(allowed_updates=['message', 'message_reaction'])
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
         logger.warning("Requests lib error. Restarting bot...\n\n")
 
