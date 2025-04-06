@@ -23,7 +23,7 @@ class Database():
             id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             chat_id INTEGER NOT NULL,
-            username TEXT NOT NULL UNIQUE,
+            username TEXT NOT NULL,
             full_name TEXT,
             reputation INTEGER DEFAULT 0,
             cooldown INTEGER DEFAULT 0,

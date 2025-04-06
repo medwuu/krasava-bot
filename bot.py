@@ -131,11 +131,12 @@ def coinflip(message):
 
 @bot.message_handler(content_types=['text'])
 def text_handler(message):
-    start(message)
-    anyText(message)
     if message.chat.type != "supergroup":
         bot.send_message(message.chat.id, "Бот работает только для групповых чатов!")
         return
+
+    start(message)
+    anyText(message)
     if message.text.lower()[:4] in ['+rep', '-rep', '+реп', '-реп']:
         reputation(message)
 
