@@ -57,7 +57,7 @@ def start(message):
     # обновление username
     if user_in_db[1] != str(message.from_user.username):
         with Database() as db:
-            db.updateUsername(message.chat.id, message.from_user.id, message.from_user.username)
+            db.updateUsername(message.from_user.id, message.from_user.username)
         if message.from_user.username:
             bot.send_message(message.chat.id,
                              "Ух ты! Вижу, ты обновил свой никнейм. Он тебе очень идёт. Теперь буду знать, что это именно ты 😉",
@@ -70,7 +70,7 @@ def start(message):
     # обновление full_name. проверяется при каждом обращении к боту для поддержания актуальности данных
     if user_in_db[2] != message.from_user.full_name:
         with Database() as db:
-            db.updateFullName(message.chat.id, message.from_user.id, message.from_user.full_name)
+            db.updateFullName(message.from_user.id, message.from_user.full_name)
 
     else:
         # повторное прописывание "/start"

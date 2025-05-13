@@ -162,7 +162,8 @@ class Database():
         :return: Массив пользователей
         :rtype: `[(int, str, str), ...]`
         """
-        response = self.cursor.execute("SELECT user_id, username, full_name\
+        response = self.cursor.execute("SELECT user_id, username,\
+                                       COALESCE(full_name, '') AS full_name\
                                        FROM users\
                                        WHERE chat_id=? AND is_active=1",
                                        (chat_id,))
